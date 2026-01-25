@@ -1,0 +1,8 @@
+- id: alice
+  name: Alice
+
+- id: bob
+  name: Bob
+
+- id: charlie
+  name: Charlie

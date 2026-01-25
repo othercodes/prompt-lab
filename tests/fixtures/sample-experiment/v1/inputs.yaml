@@ -1,0 +1,5 @@
+- id: greeting-1
+  message: Hello!
+
+- id: greeting-2
+  message: Good morning, how are you?
