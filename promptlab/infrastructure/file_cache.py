@@ -4,12 +4,13 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from .providers.base import ProviderResponse, ToolCall
+from ..domain.contracts.cache import CacheContract
+from ..domain.contracts.provider import ProviderResponse, ToolCall
 
 DEFAULT_CACHE_DIR = Path(".cache")
 
 
-class ResponseCache:
+class FileCache(CacheContract):
     def __init__(self, cache_dir: Path = DEFAULT_CACHE_DIR) -> None:
         self._cache_dir = cache_dir
         self._cache_dir.mkdir(parents=True, exist_ok=True)
@@ -73,18 +74,3 @@ class ResponseCache:
     def clear(self) -> None:
         for path in self._cache_dir.glob("*.json"):
             path.unlink()
-
-
-_cache: ResponseCache | None = None
-
-
-def get_cache(cache_dir: Path = DEFAULT_CACHE_DIR) -> ResponseCache:
-    global _cache
-    if _cache is None:
-        _cache = ResponseCache(cache_dir)
-    return _cache
-
-
-def clear_cache() -> None:
-    cache = get_cache()
-    cache.clear()

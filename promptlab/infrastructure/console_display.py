@@ -9,15 +9,16 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn
 from rich.table import Table
 from rich.text import Text
 
-from .loader import discover_variants, load_experiment
-from .runner import (
-    RunResult,
-    RunSummary,
+from ..domain.contracts.results import RunResult, RunSummary
+from ..domain.statistics import (
     SignificanceResult,
     calculate_confidence_interval,
     compare_variants_significance,
-    load_results,
 )
+from . import FileResultRepository, YamlConfigLoader
+
+_config_loader = YamlConfigLoader()
+_result_repository = FileResultRepository()
 
 console = Console()
 
@@ -147,8 +148,8 @@ def _display_stats_table(summary: RunSummary, show_hypothesis: bool = True) -> N
 
 
 def display_compare_table(experiment_path: Path) -> None:
-    experiment = load_experiment(experiment_path)
-    variants = discover_variants(experiment_path)
+    experiment = _config_loader.load_experiment(experiment_path)
+    variants = _config_loader.discover_variants(experiment_path)
 
     console.print()
     if experiment.hypothesis:
@@ -172,7 +173,7 @@ def display_compare_table(experiment_path: Path) -> None:
 
     for variant_path in variants:
         try:
-            summary = load_results(variant_path)
+            summary = _result_repository.load(variant_path)
 
             if not summary.results:
                 continue
@@ -254,7 +255,7 @@ def display_response(
     model: str | None = None,
     run_timestamp: str | None = None,
 ) -> None:
-    summary = load_results(variant_path, run_timestamp)
+    summary = _result_repository.load(variant_path, run_timestamp)
 
     results = summary.results
     if input_id:

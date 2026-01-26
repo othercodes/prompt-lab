@@ -5,8 +5,9 @@ from typing import Annotated
 import typer
 from dotenv import load_dotenv
 
-from promptlab.cache import clear_cache
-from promptlab.display import (
+from promptlab.application.run_experiment import RunExperiment
+from promptlab.infrastructure import FileCache, FileResultRepository, YamlConfigLoader
+from promptlab.infrastructure.console_display import (
     display_compare_table,
     display_hypothesis,
     display_response,
@@ -14,13 +15,7 @@ from promptlab.display import (
     display_run_complete,
     progress_bar,
 )
-from promptlab.runner import (
-    count_experiment_tasks,
-    count_tasks,
-    load_results,
-    run_experiment,
-    run_variant,
-)
+from promptlab.infrastructure.providers.factory import get_provider
 
 load_dotenv()
 
@@ -33,6 +28,19 @@ app = typer.Typer(
 cache_app = typer.Typer(help="Cache management commands")
 app.add_typer(cache_app, name="cache")
 
+_config_loader = YamlConfigLoader()
+_result_repository = FileResultRepository()
+_cache = FileCache()
+
+
+def _create_runner(use_cache: bool = True) -> RunExperiment:
+    return RunExperiment(
+        config_loader=_config_loader,
+        result_repository=_result_repository,
+        cache=_cache if use_cache else None,
+        provider_factory=get_provider,
+    )
+
 
 async def _run_with_progress(
     path: Path,
@@ -40,11 +48,13 @@ async def _run_with_progress(
     use_cache: bool,
     all_variants: bool,
 ) -> list:
+    runner = _create_runner(use_cache)
+
     if all_variants:
-        total = count_experiment_tasks(path, models)
+        total = runner.count_experiment_tasks(path, models)
         description = f"Running {path.name}"
     else:
-        total = count_tasks(path, models)
+        total = runner.count_tasks(path, models)
         description = f"Running {path.parent.name}/{path.name}"
 
     with progress_bar(description, total) as (progress, task_id):
@@ -53,12 +63,12 @@ async def _run_with_progress(
             progress.advance(task_id)
 
         if all_variants:
-            return await run_experiment(
+            return await runner.run_all_variants(
                 path, models=models, use_cache=use_cache, on_progress=on_progress
             )
         else:
             return [
-                await run_variant(
+                await runner.run_variant(
                     path, models=models, use_cache=use_cache, on_progress=on_progress
                 )
             ]
@@ -112,7 +122,7 @@ def results(
     path = path.resolve()
 
     try:
-        summary = load_results(path, run_timestamp)
+        summary = _result_repository.load(path, run_timestamp)
         display_results_table(summary)
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
@@ -159,7 +169,7 @@ def show(
 @cache_app.command("clear", help="Clear all cached responses.")
 def cache_clear() -> None:
     try:
-        clear_cache()
+        _cache.clear()
         typer.echo("Cache cleared.")
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)

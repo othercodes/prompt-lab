@@ -5,7 +5,8 @@ from typing import Any
 
 from anthropic import AsyncAnthropic
 
-from .base import Provider, ProviderResponse, ToolCall
+from ...domain.contracts.provider import ProviderResponse, ToolCall
+from .base import Provider
 
 
 class AnthropicProvider(Provider):

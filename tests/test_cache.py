@@ -3,16 +3,16 @@ from typing import Generator
 
 import pytest
 
-from promptlab.cache import ResponseCache
-from promptlab.providers.base import ProviderResponse, ToolCall
+from promptlab.domain.contracts.provider import ProviderResponse, ToolCall
+from promptlab.infrastructure.file_cache import FileCache
 
 
 @pytest.fixture
-def cache(tmp_path: Path) -> Generator[ResponseCache, None, None]:
-    yield ResponseCache(tmp_path / ".cache")
+def cache(tmp_path: Path) -> Generator[FileCache, None, None]:
+    yield FileCache(tmp_path / ".cache")
 
 
-def test_make_key_is_deterministic(cache: ResponseCache):
+def test_make_key_is_deterministic(cache: FileCache):
     key1 = cache.make_key(
         prompt="Hello {name}",
         input_data={"name": "World"},
@@ -27,7 +27,7 @@ def test_make_key_is_deterministic(cache: ResponseCache):
     assert key1 == key2
 
 
-def test_make_key_differs_for_different_inputs(cache: ResponseCache):
+def test_make_key_differs_for_different_inputs(cache: FileCache):
     key1 = cache.make_key(
         prompt="Hello {name}",
         input_data={"name": "World"},
@@ -42,7 +42,7 @@ def test_make_key_differs_for_different_inputs(cache: ResponseCache):
     assert key1 != key2
 
 
-def test_put_and_get(cache: ResponseCache):
+def test_put_and_get(cache: FileCache):
     key = cache.make_key(
         prompt="test",
         input_data={},
@@ -66,12 +66,12 @@ def test_put_and_get(cache: ResponseCache):
     assert retrieved.input_tokens == 10
 
 
-def test_get_returns_none_for_missing_key(cache: ResponseCache):
+def test_get_returns_none_for_missing_key(cache: FileCache):
     result = cache.get("nonexistent")
     assert result is None
 
 
-def test_clear_removes_all_entries(cache: ResponseCache):
+def test_clear_removes_all_entries(cache: FileCache):
     key = cache.make_key(prompt="test", input_data={}, model="test")
     response = ProviderResponse(content="test")
     cache.put(key, response)

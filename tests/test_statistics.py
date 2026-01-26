@@ -1,5 +1,5 @@
-from promptlab.runner import (
-    RunResult,
+from promptlab.domain.contracts.results import RunResult
+from promptlab.domain.statistics import (
     calculate_confidence_interval,
     calculate_stats,
     welch_t_test,
@@ -168,8 +168,8 @@ def test_welch_t_test_different_distributions():
     scores1 = [9, 10, 9, 10, 9]  # mean ~9.4
     scores2 = [5, 6, 5, 6, 5]  # mean ~5.4
     t_stat, p_value = welch_t_test(scores1, scores2)
-    assert t_stat > 0  # scores1 > scores2
-    assert p_value <= 0.05  # Should be significant
+    assert t_stat > 0
+    assert p_value <= 0.05
 
 
 def test_welch_t_test_insufficient_samples():

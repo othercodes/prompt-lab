@@ -2,13 +2,9 @@ from typing import Any
 
 import pytest
 
-from promptlab.providers.base import (
-    Provider,
-    ProviderResponse,
-    ToolCall,
-    get_provider,
-    parse_model_id,
-)
+from promptlab.domain.contracts.provider import ProviderResponse, ToolCall
+from promptlab.infrastructure.providers.base import Provider
+from promptlab.infrastructure.providers.factory import get_provider, parse_model_id
 
 
 class _DummyProvider(Provider):
@@ -24,6 +20,15 @@ class _DummyProvider(Provider):
         tools: list[dict[str, Any]] | None = None,
     ) -> ProviderResponse:
         return ProviderResponse(content="")
+
+    async def execute_json(
+        self,
+        model: str,
+        prompt: str,
+        user_input: dict[str, Any],
+        temperature: float = 0.0,
+    ) -> dict[str, Any]:
+        return {}
 
 
 @pytest.mark.parametrize(
