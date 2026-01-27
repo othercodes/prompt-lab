@@ -25,10 +25,24 @@ class PromptConfig:
 class JudgeConfig:
     content: str
     model: str = "openai:gpt-4o"
+    models: list[str] | None = None  # Multi-judge: list of models (opt-in)
+    aggregation: str = "mean"  # mean | median (only used with multi-judge)
     score_range: tuple[int, int] = (1, 10)
     temperature: float = 0.0
     chain_of_thought: bool = True
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def is_multi_judge(self) -> bool:
+        """Check if multi-judge mode is enabled."""
+        return self.models is not None and len(self.models) > 1
+
+    @property
+    def judge_models(self) -> list[str]:
+        """Return list of judge models (single or multi)."""
+        if self.models:
+            return self.models
+        return [self.model]
 
 
 @dataclass

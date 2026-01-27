@@ -121,7 +121,17 @@ class YamlConfigLoader(ConfigLoaderContract):
         post = frontmatter.load(path)
         metadata = dict(post.metadata)
 
+        # Single judge (default) vs multi-judge (opt-in)
         model = metadata.pop("model", "openai:gpt-4o")
+        models = metadata.pop("models", None)  # Multi-judge: list of models
+        aggregation = metadata.pop("aggregation", "mean")
+
+        # Validate aggregation method
+        if aggregation not in ("mean", "median"):
+            raise YamlConfigLoaderError(
+                f"Invalid aggregation '{aggregation}'. Must be 'mean' or 'median'"
+            )
+
         temperature = metadata.pop("temperature", 0.0)
         chain_of_thought = metadata.pop("chain_of_thought", True)
 
@@ -135,6 +145,8 @@ class YamlConfigLoader(ConfigLoaderContract):
         return JudgeConfig(
             content=post.content,
             model=model,
+            models=models,
+            aggregation=aggregation,
             score_range=(score_min, score_max),
             temperature=float(temperature),
             chain_of_thought=bool(chain_of_thought),

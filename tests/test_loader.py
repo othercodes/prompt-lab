@@ -170,3 +170,91 @@ def test_load_judge_chain_of_thought(
 
     config = loader._load_judge(tmp_path, tmp_path)
     assert config.chain_of_thought == expected
+
+
+# Multi-judge tests
+
+
+def test_load_judge_single_model_default(loader: YamlConfigLoader, tmp_path: Path):
+    """Single model (default behavior) - opt-out of multi-judge."""
+    judge_file = tmp_path / "judge.md"
+    judge_file.write_text("---\nmodel: openai:gpt-4o\n---\nEvaluate.\n")
+
+    config = loader._load_judge(tmp_path, tmp_path)
+
+    assert config.model == "openai:gpt-4o"
+    assert config.models is None
+    assert config.is_multi_judge is False
+    assert config.judge_models == ["openai:gpt-4o"]
+
+
+def test_load_judge_multi_model_opt_in(loader: YamlConfigLoader, tmp_path: Path):
+    """Multi-judge enabled via 'models' list."""
+    judge_file = tmp_path / "judge.md"
+    judge_file.write_text(
+        "---\n"
+        "models:\n"
+        "  - openai:gpt-4o-mini\n"
+        "  - anthropic:claude-sonnet-4-20250514\n"
+        "aggregation: mean\n"
+        "---\n"
+        "Evaluate.\n"
+    )
+
+    config = loader._load_judge(tmp_path, tmp_path)
+
+    assert config.models == ["openai:gpt-4o-mini", "anthropic:claude-sonnet-4-20250514"]
+    assert config.aggregation == "mean"
+    assert config.is_multi_judge is True
+    assert config.judge_models == [
+        "openai:gpt-4o-mini",
+        "anthropic:claude-sonnet-4-20250514",
+    ]
+
+
+def test_load_judge_multi_model_median_aggregation(
+    loader: YamlConfigLoader, tmp_path: Path
+):
+    """Multi-judge with median aggregation."""
+    judge_file = tmp_path / "judge.md"
+    judge_file.write_text(
+        "---\n"
+        "models:\n"
+        "  - openai:gpt-4o-mini\n"
+        "  - anthropic:claude-sonnet-4-20250514\n"
+        "aggregation: median\n"
+        "---\n"
+        "Evaluate.\n"
+    )
+
+    config = loader._load_judge(tmp_path, tmp_path)
+
+    assert config.aggregation == "median"
+
+
+def test_load_judge_invalid_aggregation(loader: YamlConfigLoader, tmp_path: Path):
+    """Invalid aggregation method raises error."""
+    judge_file = tmp_path / "judge.md"
+    judge_file.write_text(
+        "---\nmodels:\n  - openai:gpt-4o-mini\naggregation: invalid\n---\nEvaluate.\n"
+    )
+
+    with pytest.raises(YamlConfigLoaderError, match="Invalid aggregation"):
+        loader._load_judge(tmp_path, tmp_path)
+
+
+def test_load_judge_default_aggregation(loader: YamlConfigLoader, tmp_path: Path):
+    """Default aggregation is mean."""
+    judge_file = tmp_path / "judge.md"
+    judge_file.write_text(
+        "---\n"
+        "models:\n"
+        "  - openai:gpt-4o-mini\n"
+        "  - anthropic:claude-sonnet-4-20250514\n"
+        "---\n"
+        "Evaluate.\n"
+    )
+
+    config = loader._load_judge(tmp_path, tmp_path)
+
+    assert config.aggregation == "mean"

@@ -211,10 +211,41 @@ You are evaluating a greeting response.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `model` | `openai:gpt-4o` | Model to use for judging |
+| `model` | `openai:gpt-4o` | Model to use for judging (single judge) |
+| `models` | - | List of models for multi-judge (opt-in, see below) |
+| `aggregation` | `mean` | Score aggregation: `mean` or `median` (multi-judge only) |
 | `score_range` | `[1, 10]` | Min and max score |
 | `temperature` | `0` | 0 = deterministic, higher = more varied |
 | `chain_of_thought` | `true` | Step-by-step reasoning before scoring (disable with `false`) |
+
+### Multi-Judge Evaluation (Opt-in)
+
+Use multiple LLM models as judges to reduce self-enhancement bias (when a model scores itself favorably). Scores are aggregated using mean or median.
+
+```yaml
+---
+models:
+  - openai:gpt-4o-mini
+  - anthropic:claude-sonnet-4-20250514
+aggregation: mean
+score_range: [1, 10]
+---
+
+## Rubric
+...
+```
+
+**When to use multi-judge:**
+- Testing responses from GPT models? Add Claude as a judge (and vice versa)
+- Need more reliable scores? Multiple perspectives reduce bias
+- High-stakes evaluations where accuracy matters
+
+**Trade-offs:**
+- Requires API keys for multiple providers
+- 2x API costs for judging
+- Slightly slower execution
+
+**Note:** Use `model:` (singular) for single judge, `models:` (plural) for multi-judge.
 
 ### Chain-of-Thought Evaluation
 
