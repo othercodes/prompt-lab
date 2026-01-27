@@ -1,4 +1,5 @@
 import asyncio
+import shutil
 from pathlib import Path
 from typing import Annotated
 
@@ -33,6 +34,16 @@ _result_repository = FileResultRepository()
 _cache = FileCache()
 
 
+def _is_variant(path: Path) -> bool:
+    """Check if path is a variant (has prompt.md)."""
+    return (path / "prompt.md").exists()
+
+
+def _is_experiment(path: Path) -> bool:
+    """Check if path is an experiment (has experiment.md)."""
+    return (path / "experiment.md").exists()
+
+
 def _create_runner(use_cache: bool = True) -> RunExperiment:
     return RunExperiment(
         config_loader=_config_loader,
@@ -46,11 +57,11 @@ async def _run_with_progress(
     path: Path,
     models: list[str] | None,
     use_cache: bool,
-    all_variants: bool,
+    is_experiment: bool,
 ) -> list:
     runner = _create_runner(use_cache)
 
-    if all_variants:
+    if is_experiment:
         total = runner.count_experiment_tasks(path, models)
         description = f"Running {path.name}"
     else:
@@ -62,7 +73,7 @@ async def _run_with_progress(
         def on_progress() -> None:
             progress.advance(task_id)
 
-        if all_variants:
+        if is_experiment:
             return await runner.run_all_variants(
                 path, models=models, use_cache=use_cache, on_progress=on_progress
             )
@@ -82,9 +93,6 @@ def run(
     model: Annotated[
         str | None, typer.Option("--model", "-m", help="Run only this model")
     ] = None,
-    all_variants: Annotated[
-        bool, typer.Option("--all", "-a", help="Run all variants in experiment")
-    ] = False,
     no_cache: Annotated[
         bool, typer.Option("--no-cache", help="Disable caching")
     ] = False,
@@ -95,18 +103,19 @@ def run(
         typer.echo(f"Error: Path not found: {path}", err=True)
         raise typer.Exit(1)
 
+    is_experiment = _is_experiment(path) and not _is_variant(path)
+
     models = [model] if model else None
 
     try:
         summaries = asyncio.run(
-            _run_with_progress(path, models, not no_cache, all_variants)
+            _run_with_progress(path, models, not no_cache, is_experiment)
         )
-        # Show hypothesis once for multi-variant runs
-        if all_variants and summaries:
+        if is_experiment and summaries:
             display_hypothesis(summaries[0].hypothesis)
 
         for summary in summaries:
-            display_run_complete(summary, show_hypothesis=not all_variants)
+            display_run_complete(summary, show_hypothesis=not is_experiment)
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
@@ -164,6 +173,63 @@ def show(
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
+
+
+@app.command(help="Clean experiment results.")
+def clean(
+    path: Annotated[
+        Path, typer.Argument(help="Path to variant or experiment directory")
+    ],
+    yes: Annotated[
+        bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")
+    ] = False,
+) -> None:
+    path = path.resolve()
+
+    if not path.exists():
+        typer.echo(f"Error: Path not found: {path}", err=True)
+        raise typer.Exit(1)
+
+    results_dirs: list[Path] = []
+
+    if _is_experiment(path) and not _is_variant(path):
+        try:
+            variants = _config_loader.discover_variants(path)
+            for variant_path in variants:
+                results_base = variant_path / "results"
+                if results_base.exists():
+                    results_dirs.extend(d for d in results_base.iterdir() if d.is_dir())
+        except Exception as e:
+            typer.echo(f"Error: {e}", err=True)
+            raise typer.Exit(1)
+    else:
+        results_base = path / "results"
+        if results_base.exists():
+            results_dirs = [d for d in results_base.iterdir() if d.is_dir()]
+
+    if not results_dirs:
+        typer.echo("No results to clean.")
+        raise typer.Exit(0)
+
+    typer.echo(f"Found {len(results_dirs)} result(s) to delete:")
+    for d in sorted(results_dirs):
+        typer.echo(f"  - {d.relative_to(path.parent)}")
+
+    if not yes:
+        confirm = typer.confirm("Delete these results?")
+        if not confirm:
+            typer.echo("Aborted.")
+            raise typer.Exit(0)
+
+    deleted = 0
+    for d in results_dirs:
+        try:
+            shutil.rmtree(d)
+            deleted += 1
+        except Exception as e:
+            typer.echo(f"Warning: Failed to delete {d}: {e}", err=True)
+
+    typer.echo(f"Deleted {deleted} result(s).")
 
 
 @cache_app.command("clear", help="Clear all cached responses.")

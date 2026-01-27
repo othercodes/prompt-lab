@@ -369,7 +369,3 @@ prompt-lab cache clear
 |----------|--------------|
 | OpenAI | `openai:gpt-4o`, `openai:gpt-4o-mini` |
 | Anthropic | `anthropic:claude-sonnet-4-20250514` |
-
-## License
-
-MIT

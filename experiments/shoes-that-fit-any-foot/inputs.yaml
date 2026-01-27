@@ -1,0 +1,31 @@
+- id: shoes
+  description: "A pair of shoes that can fit any foot size"
+  seeds: "adaptable, fit, omni-fit"
+
+- id: backpack
+  description: "A backpack that expands to triple its size when needed"
+  seeds: "expand, grow, flex"
+
+- id: umbrella
+  description: "An umbrella that changes color based on UV intensity"
+  seeds: "smart, sense, protect"
+
+- id: wallet
+  description: "A wallet that tracks spending and alerts when budget exceeded"
+  seeds: "track, budget, alert"
+
+- id: pillow
+  description: "A pillow that adjusts firmness based on sleep position"
+  seeds: "adaptive, comfort, sleep"
+
+- id: sunglasses
+  description: "Sunglasses that auto-tint based on light conditions"
+  seeds: "auto, shade, respond"
+
+- id: jacket
+  description: "A jacket that heats or cools based on body temperature"
+  seeds: "thermo, regulate, climate"
+
+- id: watch
+  description: "A watch that predicts weather changes 2 hours ahead"
+  seeds: "forecast, ahead, predict"
