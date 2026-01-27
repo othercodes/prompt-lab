@@ -150,3 +150,23 @@ def test_discover_variants_raises_when_none(loader: YamlConfigLoader, tmp_path: 
 
     with pytest.raises(YamlConfigLoaderError, match="No variants found"):
         loader.discover_variants(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "yaml_value,expected",
+    [
+        ("", True),  # Default when not specified (CoT enabled by default)
+        ("chain_of_thought: true\n", True),
+        ("chain_of_thought: false\n", False),
+    ],
+)
+def test_load_judge_chain_of_thought(
+    loader: YamlConfigLoader, tmp_path: Path, yaml_value: str, expected: bool
+):
+    judge_file = tmp_path / "judge.md"
+    judge_file.write_text(
+        f"---\nmodel: openai:gpt-4o\n{yaml_value}---\nEvaluate the response.\n"
+    )
+
+    config = loader._load_judge(tmp_path, tmp_path)
+    assert config.chain_of_thought == expected

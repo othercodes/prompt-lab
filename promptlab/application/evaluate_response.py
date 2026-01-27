@@ -3,7 +3,7 @@ from typing import Any, Callable
 
 from ..domain.contracts.config import JudgeConfig
 from ..domain.contracts.provider import ProviderContract, ProviderResponse
-from .prompts import get_judge_suffix
+from .prompts import get_cot_prefix, get_judge_suffix
 
 
 @dataclass
@@ -46,7 +46,12 @@ class EvaluateResponse:
 
         score_min, score_max = judge_config.score_range
         judge_suffix = get_judge_suffix(score_min, score_max)
-        judge_prompt = judge_config.content + "\n\n" + judge_suffix
+
+        if judge_config.chain_of_thought:
+            cot_prefix = get_cot_prefix()
+            judge_prompt = cot_prefix + judge_config.content + "\n\n" + judge_suffix
+        else:
+            judge_prompt = judge_config.content + "\n\n" + judge_suffix
 
         try:
             result = await provider.execute_json(

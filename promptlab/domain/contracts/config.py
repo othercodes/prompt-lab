@@ -27,6 +27,7 @@ class JudgeConfig:
     model: str = "openai:gpt-4o"
     score_range: tuple[int, int] = (1, 10)
     temperature: float = 0.0
+    chain_of_thought: bool = True
     metadata: dict[str, Any] = field(default_factory=dict)
 
 

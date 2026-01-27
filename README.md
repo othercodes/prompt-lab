@@ -214,6 +214,30 @@ You are evaluating a greeting response.
 | `model` | `openai:gpt-4o` | Model to use for judging |
 | `score_range` | `[1, 10]` | Min and max score |
 | `temperature` | `0` | 0 = deterministic, higher = more varied |
+| `chain_of_thought` | `true` | Step-by-step reasoning before scoring (disable with `false`) |
+
+### Chain-of-Thought Evaluation
+
+By default, the judge analyzes responses step-by-step before scoring. This improves alignment with human judgment by reducing anchoring bias.
+
+To disable Chain-of-Thought (for faster/cheaper evaluations):
+
+```yaml
+---
+model: openai:gpt-4o-mini
+score_range: [1, 10]
+chain_of_thought: false
+---
+
+## Rubric
+...
+```
+
+When enabled, the judge will:
+1. Review each rubric criterion
+2. Analyze how the response meets each criterion
+3. Identify strengths and weaknesses
+4. Only then provide the final score
 
 ## Multiple Runs & Statistics
 
@@ -293,14 +317,14 @@ Return JSON: {"result": "value"}
 
 ### run
 
-Run a prompt experiment.
+Run a prompt experiment. Auto-detects scope from path.
 
 ```bash
 # Run single variant
 prompt-lab run experiments/my-experiment/v1
 
-# Run all variants
-prompt-lab run experiments/my-experiment --all
+# Run all variants (auto-detected from experiment path)
+prompt-lab run experiments/my-experiment
 
 # Run specific model only
 prompt-lab run experiments/my-experiment/v1 --model openai:gpt-4o-mini
@@ -314,7 +338,6 @@ prompt-lab run experiments/my-experiment/v1 --no-cache
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--model` | `-m` | Run only this model |
-| `--all` | `-a` | Run all variants in experiment |
 | `--no-cache` | | Disable response caching |
 
 ### results
@@ -354,6 +377,27 @@ prompt-lab show experiments/my-experiment/v1 --model openai:gpt-4o-mini
 prompt-lab show experiments/my-experiment/v1 --input alice --model openai:gpt-4o-mini
 ```
 
+### clean
+
+Clean experiment results. Auto-detects scope from path.
+
+```bash
+# Clean single variant results
+prompt-lab clean experiments/my-experiment/v1
+
+# Clean all variants (auto-detected from experiment path)
+prompt-lab clean experiments/my-experiment
+
+# Skip confirmation
+prompt-lab clean experiments/my-experiment --yes
+```
+
+**Options:**
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--yes` | `-y` | Skip confirmation prompt |
+
 ### cache
 
 Manage response cache.
@@ -369,3 +413,15 @@ prompt-lab cache clear
 |----------|--------------|
 | OpenAI | `openai:gpt-4o`, `openai:gpt-4o-mini` |
 | Anthropic | `anthropic:claude-sonnet-4-20250514` |
+
+## References
+
+LLM-as-judge evaluation methodology and best practices:
+
+- [Evidently AI - LLM-as-a-Judge Complete Guide](https://www.evidentlyai.com/llm-guide/llm-as-a-judge)
+- [Sebastian Raschka - Understanding the 4 Main Approaches to LLM Evaluation](https://magazine.sebastianraschka.com/p/llm-evaluation-4-approaches)
+- [Eugene Yan - Evaluating the Effectiveness of LLM-Evaluators](https://eugeneyan.com/writing/llm-evaluators/)
+- [Monte Carlo - LLM-as-Judge: 7 Best Practices](https://www.montecarlodata.com/blog-llm-as-judge/)
+- [Arize AI - Evidence-Based Prompting Strategies for LLM-as-a-Judge](https://arize.com/blog/evidence-based-prompting-strategies-for-llm-as-a-judge-explanations-and-chain-of-thought/)
+- [A Survey on LLM-as-a-Judge (2024)](https://arxiv.org/abs/2411.15594)
+- [Justice or Prejudice? Quantifying Biases in LLM-as-a-Judge](https://llm-judge-bias.github.io/)

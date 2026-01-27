@@ -123,6 +123,7 @@ class YamlConfigLoader(ConfigLoaderContract):
 
         model = metadata.pop("model", "openai:gpt-4o")
         temperature = metadata.pop("temperature", 0.0)
+        chain_of_thought = metadata.pop("chain_of_thought", True)
 
         score_range = metadata.pop("score_range", None)
         if score_range:
@@ -136,6 +137,7 @@ class YamlConfigLoader(ConfigLoaderContract):
             model=model,
             score_range=(score_min, score_max),
             temperature=float(temperature),
+            chain_of_thought=bool(chain_of_thought),
             metadata=metadata,
         )
 
