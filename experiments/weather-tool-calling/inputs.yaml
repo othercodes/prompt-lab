@@ -1,0 +1,35 @@
+# Test cases: some SHOULD call the weather tool, some should NOT
+
+# === SHOULD call get_weather ===
+
+- id: weather-paris
+  message: "What's the weather like in Paris?"
+  should_call_tool: true
+  expected_location: "Paris"
+
+- id: weather-tokyo
+  message: "Is it raining in Tokyo right now?"
+  should_call_tool: true
+  expected_location: "Tokyo"
+
+- id: weather-nyc
+  message: "Do I need an umbrella in New York?"
+  should_call_tool: true
+  expected_location: "New York"
+
+# === Should NOT call any tool ===
+
+- id: greeting
+  message: "Hello, how are you?"
+  should_call_tool: false
+  expected_location: ""
+
+- id: math
+  message: "What's 25 times 4?"
+  should_call_tool: false
+  expected_location: ""
+
+- id: general-question
+  message: "What is the capital of France?"
+  should_call_tool: false
+  expected_location: ""
