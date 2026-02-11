@@ -1,5 +1,5 @@
 [project]
-name = "prompt-lab"
+name = "llm-prompt-lab"
 version = "0.1.0"
 description = "Test prompt variants across LLM providers with LLM-as-judge evaluation"
 readme = "README.md"
@@ -23,7 +23,7 @@ dev = [
 ]
 
 [project.scripts]
-prompt-lab = "cli:app"
+prompt-lab = "promptlab.cli:app"
 
 [build-system]
 requires = ["hatchling"]
@@ -31,6 +31,10 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["promptlab"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"promptlab/application/prompts/judge_suffix.md" = "promptlab/application/prompts/judge_suffix.md"
+"promptlab/application/prompts/judge_cot_prefix.md" = "promptlab/application/prompts/judge_cot_prefix.md"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
