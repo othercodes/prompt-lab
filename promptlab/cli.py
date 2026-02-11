@@ -94,7 +94,7 @@ def _run_wizard() -> ExperimentSpec:
         inputs = [{"id": "default"}]
 
     # Collect available variables for hints
-    available_vars = set()
+    available_vars: set[str] = set()
     for inp in inputs:
         available_vars.update(k for k in inp if k != "id")
 
@@ -149,7 +149,7 @@ async def _run_with_progress(
     use_cache: bool,
     is_experiment: bool,
     quiet: bool = False,
-) -> list:
+) -> list[Any]:
     runner = _create_runner(use_cache)
 
     if quiet:
