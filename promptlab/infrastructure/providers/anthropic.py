@@ -26,17 +26,22 @@ class AnthropicProvider(Provider):
         prompt: str,
         user_input: dict[str, Any],
         tools: list[dict[str, Any]] | None = None,
+        system_prompt: str | None = None,
     ) -> ProviderResponse:
-        formatted_prompt = self.format_prompt(prompt, user_input)
+        system_content, user_content = self.build_messages(
+            prompt, user_input, system_prompt
+        )
 
         kwargs: dict[str, Any] = {
             "model": model,
             "max_tokens": 4096,
-            "system": formatted_prompt,
             "messages": [
-                {"role": "user", "content": json.dumps(user_input)},
+                {"role": "user", "content": user_content},
             ],
         }
+
+        if system_content:
+            kwargs["system"] = system_content
 
         if tools:
             kwargs["tools"] = self._format_tools(tools)
@@ -74,18 +79,25 @@ class AnthropicProvider(Provider):
         prompt: str,
         user_input: dict[str, Any],
         temperature: float = 0.0,
+        system_prompt: str | None = None,
     ) -> dict[str, Any]:
-        formatted_prompt = self.format_prompt(prompt, user_input)
-
-        response = await self.client.messages.create(
-            model=model,
-            max_tokens=4096,
-            system=formatted_prompt,
-            messages=[
-                {"role": "user", "content": json.dumps(user_input)},
-            ],
-            temperature=temperature,
+        system_content, user_content = self.build_messages(
+            prompt, user_input, system_prompt
         )
+
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "max_tokens": 4096,
+            "messages": [
+                {"role": "user", "content": user_content},
+            ],
+            "temperature": temperature,
+        }
+
+        if system_content:
+            kwargs["system"] = system_content
+
+        response = await self.client.messages.create(**kwargs)
 
         content = ""
         for block in response.content:

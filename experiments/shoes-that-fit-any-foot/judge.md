@@ -43,7 +43,7 @@ You are evaluating product names for brandability and consistency. Be fair but c
 - **1-2**: Poor - chaotic, unprofessional, ignores requirements
 
 ## Evaluation Context
-**Product Description:** {{ user_input }}
+**Prompt:** {{ prompt }}
 **Generated Names:** {{ response }}
 
 Calculate final score (1-10) with brief justification.

@@ -26,13 +26,16 @@ class OpenAIProvider(Provider):
         prompt: str,
         user_input: dict[str, Any],
         tools: list[dict[str, Any]] | None = None,
+        system_prompt: str | None = None,
     ) -> ProviderResponse:
-        formatted_prompt = self.format_prompt(prompt, user_input)
+        system_content, user_content = self.build_messages(
+            prompt, user_input, system_prompt
+        )
 
-        messages = [
-            {"role": "system", "content": formatted_prompt},
-            {"role": "user", "content": json.dumps(user_input)},
-        ]
+        messages: list[dict[str, str]] = []
+        if system_content:
+            messages.append({"role": "system", "content": system_content})
+        messages.append({"role": "user", "content": user_content})
 
         kwargs: dict[str, Any] = {
             "model": model,
@@ -75,13 +78,16 @@ class OpenAIProvider(Provider):
         prompt: str,
         user_input: dict[str, Any],
         temperature: float = 0.0,
+        system_prompt: str | None = None,
     ) -> dict[str, Any]:
-        formatted_prompt = self.format_prompt(prompt, user_input)
+        system_content, user_content = self.build_messages(
+            prompt, user_input, system_prompt
+        )
 
-        messages: list[dict[str, Any]] = [
-            {"role": "system", "content": formatted_prompt},
-            {"role": "user", "content": json.dumps(user_input)},
-        ]
+        messages: list[dict[str, Any]] = []
+        if system_content:
+            messages.append({"role": "system", "content": system_content})
+        messages.append({"role": "user", "content": user_content})
 
         response = await self.client.chat.completions.create(  # type: ignore[call-overload]
             model=model,

@@ -14,9 +14,8 @@ The AI has access to a `get_weather` tool that fetches real weather data.
 
 ## Input Information
 
-**User asked:** {{ user_input.message }}
-**Should use tool:** {{ user_input.should_call_tool }}
-**Expected location (if applicable):** {{ user_input.expected_location }}
+**System instructions:** {{ system_prompt }}
+**User message:** {{ prompt }}
 
 ## AI Response
 

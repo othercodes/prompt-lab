@@ -17,6 +17,7 @@ class ExperimentConfig:
 @dataclass
 class PromptConfig:
     content: str
+    system_content: str | None = None
     models: list[str] | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 

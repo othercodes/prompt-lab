@@ -4,6 +4,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
+from jinja2 import Template
+
 from ..domain.contracts.cache import CacheContract
 from ..domain.contracts.config import ConfigLoaderContract, InputCase
 from ..domain.contracts.provider import ProviderContract, ProviderResponse
@@ -76,6 +78,7 @@ class RunExperiment:
                     task = self._run_single(
                         model_id=model_id,
                         prompt=config.prompt.content,
+                        system_prompt=config.prompt.system_content,
                         input_case=input_case,
                         tools=tools_list,
                         judge_config=config.judge,
@@ -156,6 +159,7 @@ class RunExperiment:
         self,
         model_id: str,
         prompt: str,
+        system_prompt: str | None,
         input_case: InputCase,
         tools: list[dict[str, Any]] | None,
         judge_config: Any,
@@ -186,15 +190,21 @@ class RunExperiment:
                 prompt=prompt,
                 user_input=input_case.data,
                 tools=tools,
+                system_prompt=system_prompt,
             )
 
             if cache:
                 cache.put(cache_key, response)
 
+        rendered_prompt = Template(prompt).render(**input_case.data)
+        rendered_system = (
+            Template(system_prompt).render(**input_case.data) if system_prompt else ""
+        )
+
         judge_result = await self._evaluator.execute(
             judge_config=judge_config,
-            prompt=prompt,
-            user_input=input_case.data,
+            prompt=rendered_prompt,
+            system_prompt=rendered_system,
             response=response,
         )
 

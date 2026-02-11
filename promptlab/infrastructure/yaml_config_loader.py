@@ -98,8 +98,14 @@ class YamlConfigLoader(ConfigLoaderContract):
 
         models = metadata.pop("models", None)
 
+        system_content = None
+        system_file = path / "system.md"
+        if system_file.exists():
+            system_content = system_file.read_text().strip()
+
         return PromptConfig(
             content=post.content,
+            system_content=system_content,
             models=models,
             metadata=metadata,
         )

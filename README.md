@@ -18,7 +18,14 @@ ANTHROPIC_API_KEY=sk-ant-...
 ## Quick Start
 
 ```bash
+# Create a new experiment
+prompt-lab new
+prompt-lab new --config spec.yaml
+
 # Run an experiment
+prompt-lab run experiments/my-experiment
+
+# Run a single variant
 prompt-lab run experiments/my-experiment/v1
 
 # View results
@@ -31,13 +38,14 @@ prompt-lab compare experiments/my-experiment
 ## How It Works
 
 ```
-prompt.md + inputs.yaml → LLM → response → judge.md → score
+system.md (optional) + prompt.md + inputs.yaml → LLM → response → judge.md → score
 ```
 
-1. **prompt.md** is the subject under test (the prompt you want to evaluate)
-2. **inputs.yaml** provides test cases with variables for the prompt
-3. The prompt is sent to each configured **model** (LLM)
-4. **judge.md** evaluates each response and assigns a score
+1. **prompt.md** is the user message sent to the LLM (the prompt you want to evaluate)
+2. **system.md** (optional) is the system message — persona, instructions, constraints
+3. **inputs.yaml** provides test cases with variables for both files
+4. The messages are sent to each configured **model** (LLM)
+5. **judge.md** evaluates each response and assigns a score
 
 Create multiple variants (v1, v2, etc.) to compare different prompt approaches.
 
@@ -49,11 +57,12 @@ my-experiment/
 ├── judge.md            # Evaluator: scoring criteria (required)
 ├── inputs.yaml         # Shared test cases (optional, used by all variants)
 ├── v1/                 # Variant (at least one required)
-│   ├── prompt.md       # ⭐ Subject under test (required)
-│   ├── inputs.yaml     # Variant-specific inputs (overrides experiment-level)
+│   ├── prompt.md       # User message (required)
+│   ├── system.md       # System message (optional)
 │   └── tools.yaml      # Tool definitions (optional)
 └── v2/                 # Another variant to compare...
-    └── prompt.md       # ⭐ Different prompt approach
+    ├── prompt.md        # Different prompt approach
+    └── system.md        # Different system instructions
 ```
 
 Both `judge.md` and `inputs.yaml` support fallback: if not found in the variant folder, the experiment-level file is used. This allows sharing test cases across variants for fair A/B comparison.
@@ -88,43 +97,48 @@ Optional markdown content describing the experiment.
 | `runs` | `5` | Runs per input (for statistical analysis) |
 | `hypothesis` | `""` | What you're testing (displayed in results) |
 
-### prompt.md (subject under test)
+### prompt.md (user message)
 
-The prompt you want to evaluate. This is what gets sent to the LLM. Use `{{ variables }}` to inject test data from `inputs.yaml`.
+The user message sent to the LLM. Use `{{ variables }}` to inject test data from `inputs.yaml`.
 
-```yaml
----
-description: Friendly greeting style
----
+```markdown
+Generate 5 creative product names.
 
-You are a friendly assistant. Greet the user warmly.
+Product description: {{ description }}
+Seed words: {{ seeds }}
 
-User: {{ name }}
+Product names:
 ```
 
-Each variant folder contains a different `prompt.md` to compare approaches (e.g., formal vs casual tone, different instructions, etc.).
+Each variant folder contains a different `prompt.md` to compare approaches (e.g., zero-shot vs few-shot, formal vs casual tone, etc.).
 
-**Prompt options:**
+For hardcoded prompts without variables, just write the prompt directly:
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `models` | experiment models | Override which models to test for this variant |
-
-Example with models override:
-
-```yaml
----
-description: GPT-4 optimized prompt
-models:
-  - openai:gpt-4o
----
-
-You are a helpful assistant...
+```markdown
+Tell me a joke about programming.
 ```
+
+### system.md (optional system message)
+
+If present, becomes the system message for the LLM call. Uses the same `{{ variables }}` from `inputs.yaml`.
+
+```markdown
+You are a helpful assistant. You can check the weather using the get_weather tool when users ask about weather conditions.
+
+Only use the weather tool when the user is actually asking about weather. For other questions, just respond normally without using any tools.
+```
+
+When `system.md` is absent, the prompt is sent as the user message with no system message.
+
+**When to use system.md:**
+
+- Setting a persona or role for the LLM
+- Providing instructions that frame behavior (e.g., tool usage rules)
+- Separating "what the model is" from "what the user asks"
 
 ### inputs.yaml (optional)
 
-Test cases with variables matching the prompt template. If omitted, runs once with empty data (useful for static prompts without variables).
+Test cases with variables matching the prompt and system templates. If omitted, runs once with empty data (useful for static prompts without variables).
 
 ```yaml
 - id: alice
@@ -135,6 +149,8 @@ Test cases with variables matching the prompt template. If omitted, runs once wi
   runs: 10  # Override experiment's runs for this input
 ```
 
+Each input case can have any number of fields. All fields (except `id` and `runs`) are available as `{{ variables }}` in both `prompt.md` and `system.md`.
+
 **Location:** Can be placed at experiment level (shared across all variants) or in a variant folder (variant-specific). Variant-level inputs take precedence over experiment-level.
 
 **Input options:**
@@ -143,7 +159,7 @@ Test cases with variables matching the prompt template. If omitted, runs once wi
 |-------|---------|-------------|
 | `id` | `input-N` | Unique identifier for results |
 | `runs` | experiment runs | Override runs for this specific input |
-| (other) | - | Variables available in prompt template |
+| (other) | - | Variables available in prompt and system templates |
 
 ### tools.yaml (optional)
 
@@ -203,7 +219,7 @@ You are evaluating a greeting response.
 - **4-5**: Cold or overly formal
 - **1-3**: Inappropriate or ignores user
 
-**User Input:** {{ user_input }}
+**Prompt:** {{ prompt }}
 **Model Response:** {{ response }}
 ```
 
@@ -332,7 +348,7 @@ This helps you know if v1 is actually better than v2, or if the difference is ju
 
 ## Templating
 
-Variables from `inputs.yaml` are available in prompts:
+Variables from `inputs.yaml` are available in both `prompt.md` and `system.md`:
 
 ```markdown
 Hello {{ name }}, you are {{ age }} years old.
@@ -346,22 +362,43 @@ Return JSON: {"result": "value"}
 
 ## CLI Commands
 
+### new
+
+Create a new experiment. Runs an interactive wizard or reads from a config file.
+
+```bash
+# Interactive wizard
+prompt-lab new
+
+# From config file
+prompt-lab new --config spec.yaml
+```
+
+**Options:**
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--config` | `-c` | Path to experiment spec YAML |
+
 ### run
 
 Run a prompt experiment. Auto-detects scope from path.
 
 ```bash
+# Run all variants
+prompt-lab run experiments/my-experiment
+
 # Run single variant
 prompt-lab run experiments/my-experiment/v1
-
-# Run all variants (auto-detected from experiment path)
-prompt-lab run experiments/my-experiment
 
 # Run specific model only
 prompt-lab run experiments/my-experiment/v1 --model openai:gpt-4o-mini
 
 # Skip cache (fresh API calls)
 prompt-lab run experiments/my-experiment/v1 --no-cache
+
+# Hide progress bar
+prompt-lab run experiments/my-experiment -q
 ```
 
 **Options:**
@@ -370,6 +407,7 @@ prompt-lab run experiments/my-experiment/v1 --no-cache
 |--------|-------|-------------|
 | `--model` | `-m` | Run only this model |
 | `--no-cache` | | Disable response caching |
+| `--quiet` | `-q` | Hide progress bar |
 
 ### results
 

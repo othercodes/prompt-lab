@@ -18,6 +18,7 @@ class _DummyProvider(Provider):
         prompt: str,
         user_input: dict[str, Any],
         tools: list[dict[str, Any]] | None = None,
+        system_prompt: str | None = None,
     ) -> ProviderResponse:
         return ProviderResponse(content="")
 
@@ -27,6 +28,7 @@ class _DummyProvider(Provider):
         prompt: str,
         user_input: dict[str, Any],
         temperature: float = 0.0,
+        system_prompt: str | None = None,
     ) -> dict[str, Any]:
         return {}
 
@@ -93,3 +95,31 @@ def test_provider_format_prompt_raises_for_missing():
 
     with pytest.raises(ValueError, match="Missing input variable"):
         provider.format_prompt("Hello {{ name }}", {})
+
+
+def test_build_messages_without_system():
+    provider = _DummyProvider()
+    system, user = provider.build_messages("Hello {{ name }}", {"name": "Alice"})
+
+    assert system is None
+    assert user == "Hello Alice"
+
+
+def test_build_messages_with_system():
+    provider = _DummyProvider()
+    system, user = provider.build_messages(
+        "Translate: {{ text }}",
+        {"text": "hello", "role": "translator"},
+        system_prompt="You are a {{ role }}",
+    )
+
+    assert system == "You are a translator"
+    assert user == "Translate: hello"
+
+
+def test_build_messages_hardcoded_no_vars():
+    provider = _DummyProvider()
+    system, user = provider.build_messages("Tell me a joke", {})
+
+    assert system is None
+    assert user == "Tell me a joke"

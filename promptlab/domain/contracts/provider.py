@@ -32,6 +32,7 @@ class ProviderContract(ABC):
         prompt: str,
         user_input: dict[str, Any],
         tools: list[dict[str, Any]] | None = None,
+        system_prompt: str | None = None,
     ) -> ProviderResponse:
         pass
 
@@ -42,5 +43,6 @@ class ProviderContract(ABC):
         prompt: str,
         user_input: dict[str, Any],
         temperature: float = 0.0,
+        system_prompt: str | None = None,
     ) -> dict[str, Any]:
         pass
