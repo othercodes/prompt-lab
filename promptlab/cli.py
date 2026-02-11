@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import typer
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 from promptlab.application.create_experiment import (
     CreateExperiment,
@@ -24,7 +24,7 @@ from promptlab.infrastructure.console_display import (
 from promptlab.infrastructure.experiment_scaffolder import ExperimentScaffolder
 from promptlab.infrastructure.providers.factory import get_provider
 
-load_dotenv()
+load_dotenv(find_dotenv(usecwd=True))
 
 app = typer.Typer(
     name="prompt-lab",

@@ -5,14 +5,37 @@ Test prompt variants across LLM providers with LLM-as-judge evaluation.
 ## Installation
 
 ```bash
-uv sync
+pip install llm-prompt-lab
 ```
 
-Create `.env` with your API keys:
+Or with [pipx](https://pipx.pypa.io/) for isolated installs:
+
+```bash
+pipx install llm-prompt-lab
+```
+
+### API Keys
+
+Set your provider API keys as environment variables:
+
+```bash
+export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+Alternatively, create a `.env` file in your working directory — prompt-lab loads it automatically:
 
 ```
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
+```
+
+Only the keys for providers you use are required.
+
+### Development
+
+```bash
+uv sync
 ```
 
 ## Quick Start
