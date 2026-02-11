@@ -1,12 +1,17 @@
 import asyncio
 import shutil
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from dotenv import load_dotenv
 
+from promptlab.application.create_experiment import (
+    CreateExperiment,
+    CreateExperimentError,
+)
 from promptlab.application.run_experiment import RunExperiment
+from promptlab.domain.contracts.scaffold import ExperimentSpec, JudgeSpec, VariantSpec
 from promptlab.infrastructure import FileCache, FileResultRepository, YamlConfigLoader
 from promptlab.infrastructure.console_display import (
     display_compare_table,
@@ -16,6 +21,7 @@ from promptlab.infrastructure.console_display import (
     display_run_complete,
     progress_bar,
 )
+from promptlab.infrastructure.experiment_scaffolder import ExperimentScaffolder
 from promptlab.infrastructure.providers.factory import get_provider
 
 load_dotenv()
@@ -35,12 +41,10 @@ _cache = FileCache()
 
 
 def _is_variant(path: Path) -> bool:
-    """Check if path is a variant (has prompt.md)."""
     return (path / "prompt.md").exists()
 
 
 def _is_experiment(path: Path) -> bool:
-    """Check if path is an experiment (has experiment.md)."""
     return (path / "experiment.md").exists()
 
 
@@ -53,13 +57,108 @@ def _create_runner(use_cache: bool = True) -> RunExperiment:
     )
 
 
+def _run_wizard() -> ExperimentSpec:
+    typer.echo("\n  Experiment Setup")
+    typer.echo("  " + "─" * 40)
+
+    name = typer.prompt("  Name")
+    description = typer.prompt("  Description", default="")
+    hypothesis = typer.prompt("  Hypothesis", default="")
+    models_str = typer.prompt(
+        "  Models (comma-separated)", default="openai:gpt-4o-mini"
+    )
+    models = [m.strip() for m in models_str.split(",")]
+    runs = typer.prompt("  Runs per input", default=5, type=int)
+
+    # Inputs (optional — skip for hardcoded prompts)
+    typer.echo("\n  Input Cases")
+    typer.echo("  " + "─" * 40)
+    inputs: list[dict[str, Any]] = []
+    if typer.confirm("  Add input cases? (skip for hardcoded prompts)", default=True):
+        while True:
+            typer.echo(f"\n  Input #{len(inputs) + 1}:")
+            input_id = typer.prompt("    ID")
+            input_data: dict[str, Any] = {"id": input_id}
+            while True:
+                field_name = typer.prompt(
+                    "    Field name (empty to finish)", default=""
+                )
+                if not field_name:
+                    break
+                field_value = typer.prompt(f"    {field_name}")
+                input_data[field_name] = field_value
+            inputs.append(input_data)
+            if not typer.confirm("  Add another input?", default=False):
+                break
+    if not inputs:
+        inputs = [{"id": "default"}]
+
+    # Collect available variables for hints
+    available_vars = set()
+    for inp in inputs:
+        available_vars.update(k for k in inp if k != "id")
+
+    # Judge
+    typer.echo("\n  Judge Configuration")
+    typer.echo("  " + "─" * 40)
+    judge_model = typer.prompt("  Judge model", default="openai:gpt-4o")
+    score_min = typer.prompt("  Score range min", default=1, type=int)
+    score_max = typer.prompt("  Score range max", default=10, type=int)
+    rubric = typer.prompt(
+        "  Judge rubric (use {{ prompt }} and {{ response }})",
+        default="",
+    )
+
+    judge = JudgeSpec(
+        rubric=rubric,
+        model=judge_model,
+        score_range=(score_min, score_max),
+    )
+
+    # Prompt v1
+    typer.echo("\n  Prompt Variant (v1)")
+    typer.echo("  " + "─" * 40)
+    if available_vars:
+        vars_hint = ", ".join(f"{{{{ {v} }}}}" for v in sorted(available_vars))
+        typer.echo(f"  Available variables: {vars_hint}")
+    system_text = typer.prompt("  System prompt (optional)", default="")
+    prompt_text = typer.prompt("  User prompt template")
+
+    variants = {
+        "v1": VariantSpec(
+            prompt=prompt_text,
+            system=system_text or None,
+        )
+    }
+
+    return ExperimentSpec(
+        name=name,
+        description=description,
+        hypothesis=hypothesis,
+        models=models,
+        runs=runs,
+        inputs=inputs,
+        judge=judge,
+        variants=variants,
+    )
+
+
 async def _run_with_progress(
     path: Path,
     models: list[str] | None,
     use_cache: bool,
     is_experiment: bool,
+    quiet: bool = False,
 ) -> list:
     runner = _create_runner(use_cache)
+
+    if quiet:
+        if is_experiment:
+            return await runner.run_all_variants(
+                path, models=models, use_cache=use_cache
+            )
+        else:
+            return [await runner.run_variant(path, models=models, use_cache=use_cache)]
 
     if is_experiment:
         total = runner.count_experiment_tasks(path, models)
@@ -85,6 +184,39 @@ async def _run_with_progress(
             ]
 
 
+@app.command(help="Create a new experiment.")
+def new(
+    config: Annotated[
+        Path | None, typer.Option("--config", "-c", help="Path to experiment spec YAML")
+    ] = None,
+) -> None:
+    scaffolder = ExperimentScaffolder()
+    creator = CreateExperiment(scaffolder)
+
+    try:
+        if config:
+            config = config.resolve()
+            if not config.exists():
+                typer.echo(f"Error: Config file not found: {config}", err=True)
+                raise typer.Exit(1)
+            result_path = creator.from_config(config)
+        else:
+            spec = _run_wizard()
+            result_path = creator.from_spec(spec)
+
+        # Success output
+        typer.echo(f"\nCreated experiment at: {result_path}/")
+        for item in sorted(result_path.rglob("*")):
+            if item.is_file():
+                rel = item.relative_to(result_path)
+                typer.echo(f"  {rel}")
+        typer.echo(f"\nRun it with: prompt-lab run {result_path}")
+
+    except CreateExperimentError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
+
 @app.command(help="Run prompt experiment.")
 def run(
     path: Annotated[
@@ -95,6 +227,9 @@ def run(
     ] = None,
     no_cache: Annotated[
         bool, typer.Option("--no-cache", help="Disable caching")
+    ] = False,
+    quiet: Annotated[
+        bool, typer.Option("--quiet", "-q", help="Hide progress bar")
     ] = False,
 ) -> None:
     path = path.resolve()
@@ -109,7 +244,7 @@ def run(
 
     try:
         summaries = asyncio.run(
-            _run_with_progress(path, models, not no_cache, is_experiment)
+            _run_with_progress(path, models, not no_cache, is_experiment, quiet)
         )
         if is_experiment and summaries:
             display_hypothesis(summaries[0].hypothesis)

@@ -9,8 +9,6 @@ from .prompts import get_cot_prefix, get_judge_suffix
 
 @dataclass
 class IndividualJudgeResult:
-    """Result from a single judge model."""
-
     model: str
     score: int
     reasoning: str
@@ -33,6 +31,25 @@ class JudgeError(Exception):
     pass
 
 
+def _aggregate_scores(scores: list[int], method: str) -> int:
+    if method == "mean":
+        return round(statistics.mean(scores))
+    elif method == "median":
+        return round(statistics.median(scores))
+    else:
+        # Default to mean
+        return round(statistics.mean(scores))
+
+
+def _parse_model_id(model_id: str) -> tuple[str, str]:
+    if ":" not in model_id:
+        raise ValueError(
+            f"Invalid model ID '{model_id}'. Expected format: 'provider:model'"
+        )
+    provider, model = model_id.split(":", 1)
+    return provider, model
+
+
 class EvaluateResponse:
     def __init__(
         self,
@@ -44,12 +61,12 @@ class EvaluateResponse:
         self,
         judge_config: JudgeConfig,
         prompt: str,
-        user_input: dict[str, Any],
+        system_prompt: str,
         response: ProviderResponse,
     ) -> JudgeResult:
         judge_input = {
-            "original_prompt": prompt,
-            "user_input": user_input,
+            "prompt": prompt,
+            "system_prompt": system_prompt,
             "response": response.content,
             "tool_calls": [
                 {"name": tc.name, "arguments": tc.arguments}
@@ -91,7 +108,7 @@ class EvaluateResponse:
         else:
             # Multi-judge: aggregate scores
             scores = [r.score for r in individual_results]
-            aggregated_score = self._aggregate_scores(scores, judge_config.aggregation)
+            aggregated_score = _aggregate_scores(scores, judge_config.aggregation)
 
             # Combine reasoning from all judges
             combined_reasoning = "\n\n".join(
@@ -119,8 +136,7 @@ class EvaluateResponse:
         temperature: float,
         score_range: tuple[int, int],
     ) -> IndividualJudgeResult:
-        """Evaluate response with a single judge model."""
-        provider_name, model = self._parse_model_id(model_id)
+        provider_name, model = _parse_model_id(model_id)
         provider = self._provider_factory(provider_name)
 
         score_min, score_max = score_range
@@ -153,21 +169,3 @@ class EvaluateResponse:
             reasoning=reasoning,
             raw=result,
         )
-
-    def _aggregate_scores(self, scores: list[int], method: str) -> int:
-        """Aggregate multiple judge scores."""
-        if method == "mean":
-            return round(statistics.mean(scores))
-        elif method == "median":
-            return round(statistics.median(scores))
-        else:
-            # Default to mean
-            return round(statistics.mean(scores))
-
-    def _parse_model_id(self, model_id: str) -> tuple[str, str]:
-        if ":" not in model_id:
-            raise ValueError(
-                f"Invalid model ID '{model_id}'. Expected format: 'provider:model'"
-            )
-        provider, model = model_id.split(":", 1)
-        return provider, model

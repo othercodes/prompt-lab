@@ -38,6 +38,7 @@ Thumbs.db
 # LLM-related
 .claude/
 .serena/
+.omc/
 
 # uv dependencies
 uv.lock

@@ -17,6 +17,32 @@ def loader() -> YamlConfigLoader:
     return YamlConfigLoader()
 
 
+def _create_experiment(
+    tmp_path: Path,
+    judge: str = "---\nmodel: openai:gpt-4o\n---\nEvaluate.\n",
+    inputs: str | None = None,
+    prompt: str = "Hello {{ message }}",
+    system: str | None = None,
+) -> Path:
+    (tmp_path / "experiment.md").write_text(
+        "---\nname: test\nmodels: [openai:gpt-4o]\n---\n"
+    )
+    (tmp_path / "judge.md").write_text(judge)
+    if inputs:
+        (tmp_path / "inputs.yaml").write_text(inputs)
+
+    variant_dir = tmp_path / "v1"
+    variant_dir.mkdir()
+    (variant_dir / "prompt.md").write_text(prompt)
+    if system:
+        (variant_dir / "system.md").write_text(system)
+
+    return variant_dir
+
+
+# --- load_experiment ---
+
+
 def test_load_experiment_loads_config(loader: YamlConfigLoader):
     config = loader.load_experiment(SAMPLE_EXPERIMENT)
 
@@ -34,8 +60,7 @@ def test_load_experiment_raises_when_no_file(loader: YamlConfigLoader, tmp_path:
 def test_load_experiment_raises_when_no_models(
     loader: YamlConfigLoader, tmp_path: Path
 ):
-    experiment_file = tmp_path / "experiment.md"
-    experiment_file.write_text("---\nname: test\n---\n")
+    (tmp_path / "experiment.md").write_text("---\nname: test\n---\n")
 
     with pytest.raises(YamlConfigLoaderError, match="No models specified"):
         loader.load_experiment(tmp_path)
@@ -44,15 +69,14 @@ def test_load_experiment_raises_when_no_models(
 @pytest.mark.parametrize(
     "yaml_value,expected",
     [
-        ("", 5),  # Default when not specified
-        ("runs: 10\n", 10),  # Explicit value
+        ("", 5),
+        ("runs: 10\n", 10),
     ],
 )
 def test_load_experiment_runs(
     loader: YamlConfigLoader, tmp_path: Path, yaml_value: str, expected: int
 ):
-    experiment_file = tmp_path / "experiment.md"
-    experiment_file.write_text(
+    (tmp_path / "experiment.md").write_text(
         f"---\nname: test\nmodels: [openai:gpt-4o]\n{yaml_value}---\n"
     )
 
@@ -60,69 +84,7 @@ def test_load_experiment_runs(
     assert config.runs == expected
 
 
-def test_load_prompt_loads_content(loader: YamlConfigLoader):
-    config = loader._load_prompt(SAMPLE_VARIANT)
-
-    assert "helpful assistant" in config.content
-    assert "{{ message }}" in config.content
-
-
-def test_load_prompt_raises_when_no_file(loader: YamlConfigLoader, tmp_path: Path):
-    with pytest.raises(YamlConfigLoaderError, match="prompt.md not found"):
-        loader._load_prompt(tmp_path)
-
-
-def test_load_judge_loads_from_experiment(loader: YamlConfigLoader):
-    config = loader._load_judge(SAMPLE_VARIANT, SAMPLE_EXPERIMENT)
-
-    assert config.model == "openai:gpt-4o"
-    assert config.score_range == (1, 10)
-    assert "evaluating" in config.content.lower()
-
-
-def test_load_judge_raises_when_no_judge(loader: YamlConfigLoader, tmp_path: Path):
-    with pytest.raises(YamlConfigLoaderError, match="No judge.md found"):
-        loader._load_judge(tmp_path, tmp_path)
-
-
-def test_load_inputs_loads_cases(loader: YamlConfigLoader):
-    inputs = loader._load_inputs(SAMPLE_VARIANT, SAMPLE_EXPERIMENT)
-
-    assert len(inputs) == 2
-    assert inputs[0].id == "greeting-1"
-    assert inputs[0].data["message"] == "Hello!"
-    assert inputs[1].id == "greeting-2"
-
-
-@pytest.mark.parametrize("create_file", [False, True])
-def test_load_inputs_returns_default_when_missing_or_empty(
-    loader: YamlConfigLoader, tmp_path: Path, create_file: bool
-):
-    if create_file:
-        (tmp_path / "inputs.yaml").write_text("")
-
-    inputs = loader._load_inputs(tmp_path, tmp_path)
-
-    assert len(inputs) == 1
-    assert inputs[0].id == "default"
-    assert inputs[0].data == {}
-
-
-def test_load_inputs_with_runs_override(loader: YamlConfigLoader, tmp_path: Path):
-    inputs_file = tmp_path / "inputs.yaml"
-    inputs_file.write_text(
-        "- id: test-1\n  message: Hello\n  runs: 5\n- id: test-2\n  message: Hi\n"
-    )
-
-    inputs = loader._load_inputs(tmp_path, tmp_path)
-
-    assert len(inputs) == 2
-    assert inputs[0].id == "test-1"
-    assert inputs[0].runs == 5
-    assert inputs[0].data["message"] == "Hello"
-    assert inputs[1].id == "test-2"
-    assert inputs[1].runs is None
-    assert inputs[1].data["message"] == "Hi"
+# --- load_variant ---
 
 
 def test_load_variant_loads_complete(loader: YamlConfigLoader):
@@ -135,6 +97,195 @@ def test_load_variant_loads_complete(loader: YamlConfigLoader):
     assert "openai:gpt-4o" in variant.models
 
 
+def test_load_variant_reads_prompt(loader: YamlConfigLoader, tmp_path: Path):
+    _create_experiment(tmp_path, prompt="Be a {{ role }} assistant")
+
+    variant = loader.load_variant(tmp_path / "v1")
+
+    assert "Be a {{ role }} assistant" in variant.prompt.content
+
+
+def test_load_variant_raises_when_no_prompt(loader: YamlConfigLoader, tmp_path: Path):
+    (tmp_path / "experiment.md").write_text(
+        "---\nname: test\nmodels: [openai:gpt-4o]\n---\n"
+    )
+    (tmp_path / "judge.md").write_text("---\nmodel: openai:gpt-4o\n---\nEvaluate.\n")
+    variant_dir = tmp_path / "v1"
+    variant_dir.mkdir()
+
+    with pytest.raises(YamlConfigLoaderError, match="prompt.md not found"):
+        loader.load_variant(variant_dir)
+
+
+def test_load_variant_raises_when_no_judge(loader: YamlConfigLoader, tmp_path: Path):
+    (tmp_path / "experiment.md").write_text(
+        "---\nname: test\nmodels: [openai:gpt-4o]\n---\n"
+    )
+    variant_dir = tmp_path / "v1"
+    variant_dir.mkdir()
+    (variant_dir / "prompt.md").write_text("Hello")
+
+    with pytest.raises(YamlConfigLoaderError, match="No judge.md found"):
+        loader.load_variant(variant_dir)
+
+
+@pytest.mark.parametrize(
+    "system,expected",
+    [
+        ("You are a translator", "You are a translator"),
+        (None, None),
+    ],
+)
+def test_load_variant_system_md(
+    loader: YamlConfigLoader, tmp_path: Path, system: str | None, expected: str | None
+):
+    _create_experiment(tmp_path, system=system)
+
+    variant = loader.load_variant(tmp_path / "v1")
+
+    assert variant.prompt.system_content == expected
+
+
+def test_load_variant_reads_inputs(loader: YamlConfigLoader, tmp_path: Path):
+    _create_experiment(
+        tmp_path,
+        inputs="- id: greeting-1\n  message: Hello!\n- id: greeting-2\n  message: Hi!\n",
+    )
+
+    variant = loader.load_variant(tmp_path / "v1")
+
+    assert len(variant.inputs) == 2
+    assert variant.inputs[0].id == "greeting-1"
+    assert variant.inputs[0].data["message"] == "Hello!"
+    assert variant.inputs[1].id == "greeting-2"
+
+
+def test_load_variant_defaults_inputs_when_missing(
+    loader: YamlConfigLoader, tmp_path: Path
+):
+    _create_experiment(tmp_path)
+
+    variant = loader.load_variant(tmp_path / "v1")
+
+    assert len(variant.inputs) == 1
+    assert variant.inputs[0].id == "default"
+    assert variant.inputs[0].data == {}
+
+
+def test_load_variant_reads_input_runs_override(
+    loader: YamlConfigLoader, tmp_path: Path
+):
+    _create_experiment(
+        tmp_path,
+        inputs="- id: test-1\n  message: Hello\n  runs: 5\n- id: test-2\n  message: Hi\n",
+    )
+
+    variant = loader.load_variant(tmp_path / "v1")
+
+    assert variant.inputs[0].runs == 5
+    assert variant.inputs[1].runs is None
+
+
+# --- judge config via load_variant ---
+
+
+@pytest.mark.parametrize(
+    "judge_yaml,expected",
+    [
+        ("---\nmodel: openai:gpt-4o\n---\nEvaluate.\n", True),
+        ("---\nmodel: openai:gpt-4o\nchain_of_thought: true\n---\nEvaluate.\n", True),
+        ("---\nmodel: openai:gpt-4o\nchain_of_thought: false\n---\nEvaluate.\n", False),
+    ],
+)
+def test_load_variant_judge_chain_of_thought(
+    loader: YamlConfigLoader, tmp_path: Path, judge_yaml: str, expected: bool
+):
+    _create_experiment(tmp_path, judge=judge_yaml)
+
+    variant = loader.load_variant(tmp_path / "v1")
+
+    assert variant.judge.chain_of_thought is expected
+
+
+def test_load_variant_judge_single_model(loader: YamlConfigLoader, tmp_path: Path):
+    _create_experiment(tmp_path)
+
+    variant = loader.load_variant(tmp_path / "v1")
+
+    assert variant.judge.model == "openai:gpt-4o"
+    assert variant.judge.models is None
+    assert variant.judge.is_multi_judge is False
+    assert variant.judge.judge_models == ["openai:gpt-4o"]
+
+
+def test_load_variant_judge_multi_model(loader: YamlConfigLoader, tmp_path: Path):
+    _create_experiment(
+        tmp_path,
+        judge=(
+            "---\n"
+            "models:\n"
+            "  - openai:gpt-4o-mini\n"
+            "  - anthropic:claude-sonnet-4-20250514\n"
+            "aggregation: mean\n"
+            "---\n"
+            "Evaluate.\n"
+        ),
+    )
+
+    variant = loader.load_variant(tmp_path / "v1")
+
+    assert variant.judge.models == [
+        "openai:gpt-4o-mini",
+        "anthropic:claude-sonnet-4-20250514",
+    ]
+    assert variant.judge.aggregation == "mean"
+    assert variant.judge.is_multi_judge is True
+
+
+@pytest.mark.parametrize(
+    "aggregation_yaml,expected",
+    [
+        ("", "mean"),
+        ("aggregation: mean\n", "mean"),
+        ("aggregation: median\n", "median"),
+    ],
+)
+def test_load_variant_judge_aggregation(
+    loader: YamlConfigLoader, tmp_path: Path, aggregation_yaml: str, expected: str
+):
+    _create_experiment(
+        tmp_path,
+        judge=(
+            "---\n"
+            "models:\n"
+            "  - openai:gpt-4o-mini\n"
+            "  - anthropic:claude-sonnet-4-20250514\n"
+            f"{aggregation_yaml}"
+            "---\n"
+            "Evaluate.\n"
+        ),
+    )
+
+    variant = loader.load_variant(tmp_path / "v1")
+
+    assert variant.judge.aggregation == expected
+
+
+def test_load_variant_judge_invalid_aggregation(
+    loader: YamlConfigLoader, tmp_path: Path
+):
+    _create_experiment(
+        tmp_path,
+        judge="---\nmodels:\n  - openai:gpt-4o-mini\naggregation: invalid\n---\nEvaluate.\n",
+    )
+
+    with pytest.raises(YamlConfigLoaderError, match="Invalid aggregation"):
+        loader.load_variant(tmp_path / "v1")
+
+
+# --- discover_variants ---
+
+
 def test_discover_variants_finds_all(loader: YamlConfigLoader):
     variants = loader.discover_variants(SAMPLE_EXPERIMENT)
 
@@ -145,116 +296,9 @@ def test_discover_variants_finds_all(loader: YamlConfigLoader):
 
 
 def test_discover_variants_raises_when_none(loader: YamlConfigLoader, tmp_path: Path):
-    experiment_file = tmp_path / "experiment.md"
-    experiment_file.write_text("---\nname: test\nmodels: [openai:gpt-4o]\n---\n")
+    (tmp_path / "experiment.md").write_text(
+        "---\nname: test\nmodels: [openai:gpt-4o]\n---\n"
+    )
 
     with pytest.raises(YamlConfigLoaderError, match="No variants found"):
         loader.discover_variants(tmp_path)
-
-
-@pytest.mark.parametrize(
-    "yaml_value,expected",
-    [
-        ("", True),  # Default when not specified (CoT enabled by default)
-        ("chain_of_thought: true\n", True),
-        ("chain_of_thought: false\n", False),
-    ],
-)
-def test_load_judge_chain_of_thought(
-    loader: YamlConfigLoader, tmp_path: Path, yaml_value: str, expected: bool
-):
-    judge_file = tmp_path / "judge.md"
-    judge_file.write_text(
-        f"---\nmodel: openai:gpt-4o\n{yaml_value}---\nEvaluate the response.\n"
-    )
-
-    config = loader._load_judge(tmp_path, tmp_path)
-    assert config.chain_of_thought == expected
-
-
-# Multi-judge tests
-
-
-def test_load_judge_single_model_default(loader: YamlConfigLoader, tmp_path: Path):
-    """Single model (default behavior) - opt-out of multi-judge."""
-    judge_file = tmp_path / "judge.md"
-    judge_file.write_text("---\nmodel: openai:gpt-4o\n---\nEvaluate.\n")
-
-    config = loader._load_judge(tmp_path, tmp_path)
-
-    assert config.model == "openai:gpt-4o"
-    assert config.models is None
-    assert config.is_multi_judge is False
-    assert config.judge_models == ["openai:gpt-4o"]
-
-
-def test_load_judge_multi_model_opt_in(loader: YamlConfigLoader, tmp_path: Path):
-    """Multi-judge enabled via 'models' list."""
-    judge_file = tmp_path / "judge.md"
-    judge_file.write_text(
-        "---\n"
-        "models:\n"
-        "  - openai:gpt-4o-mini\n"
-        "  - anthropic:claude-sonnet-4-20250514\n"
-        "aggregation: mean\n"
-        "---\n"
-        "Evaluate.\n"
-    )
-
-    config = loader._load_judge(tmp_path, tmp_path)
-
-    assert config.models == ["openai:gpt-4o-mini", "anthropic:claude-sonnet-4-20250514"]
-    assert config.aggregation == "mean"
-    assert config.is_multi_judge is True
-    assert config.judge_models == [
-        "openai:gpt-4o-mini",
-        "anthropic:claude-sonnet-4-20250514",
-    ]
-
-
-def test_load_judge_multi_model_median_aggregation(
-    loader: YamlConfigLoader, tmp_path: Path
-):
-    """Multi-judge with median aggregation."""
-    judge_file = tmp_path / "judge.md"
-    judge_file.write_text(
-        "---\n"
-        "models:\n"
-        "  - openai:gpt-4o-mini\n"
-        "  - anthropic:claude-sonnet-4-20250514\n"
-        "aggregation: median\n"
-        "---\n"
-        "Evaluate.\n"
-    )
-
-    config = loader._load_judge(tmp_path, tmp_path)
-
-    assert config.aggregation == "median"
-
-
-def test_load_judge_invalid_aggregation(loader: YamlConfigLoader, tmp_path: Path):
-    """Invalid aggregation method raises error."""
-    judge_file = tmp_path / "judge.md"
-    judge_file.write_text(
-        "---\nmodels:\n  - openai:gpt-4o-mini\naggregation: invalid\n---\nEvaluate.\n"
-    )
-
-    with pytest.raises(YamlConfigLoaderError, match="Invalid aggregation"):
-        loader._load_judge(tmp_path, tmp_path)
-
-
-def test_load_judge_default_aggregation(loader: YamlConfigLoader, tmp_path: Path):
-    """Default aggregation is mean."""
-    judge_file = tmp_path / "judge.md"
-    judge_file.write_text(
-        "---\n"
-        "models:\n"
-        "  - openai:gpt-4o-mini\n"
-        "  - anthropic:claude-sonnet-4-20250514\n"
-        "---\n"
-        "Evaluate.\n"
-    )
-
-    config = loader._load_judge(tmp_path, tmp_path)
-
-    assert config.aggregation == "mean"
