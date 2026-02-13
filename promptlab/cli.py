@@ -22,7 +22,7 @@ from promptlab.infrastructure.console_display import (
     progress_bar,
 )
 from promptlab.infrastructure.experiment_scaffolder import ExperimentScaffolder
-from promptlab.infrastructure.providers.factory import get_provider
+from promptlab.infrastructure.providers.factory import get_provider, known_providers
 
 load_dotenv(find_dotenv(usecwd=True))
 
@@ -48,12 +48,15 @@ def _is_experiment(path: Path) -> bool:
     return (path / "experiment.md").exists()
 
 
-def _create_runner(use_cache: bool = True) -> RunExperiment:
+def _create_runner(
+    use_cache: bool = True, key_refs: dict[str, str] | None = None
+) -> RunExperiment:
     return RunExperiment(
         config_loader=_config_loader,
         result_repository=_result_repository,
         cache=_cache if use_cache else None,
         provider_factory=get_provider,
+        key_refs=key_refs,
     )
 
 
@@ -149,8 +152,9 @@ async def _run_with_progress(
     use_cache: bool,
     is_experiment: bool,
     quiet: bool = False,
+    key_refs: dict[str, str] | None = None,
 ) -> list[Any]:
-    runner = _create_runner(use_cache)
+    runner = _create_runner(use_cache, key_refs)
 
     if quiet:
         if is_experiment:
@@ -231,6 +235,14 @@ def run(
     quiet: Annotated[
         bool, typer.Option("--quiet", "-q", help="Hide progress bar")
     ] = False,
+    key_ref: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--key-ref",
+            "-k",
+            help="Custom env var for provider API key (format: provider:ENV_VAR)",
+        ),
+    ] = None,
 ) -> None:
     path = path.resolve()
 
@@ -242,9 +254,34 @@ def run(
 
     models = [model] if model else None
 
+    # Parse key_ref list into dict
+    key_refs: dict[str, str] | None = None
+    if key_ref:
+        key_refs = {}
+        valid_providers = known_providers()
+        for ref in key_ref:
+            if ":" not in ref:
+                typer.echo(
+                    f"Error: Invalid --key-ref format '{ref}'. "
+                    f"Expected 'provider:ENV_VAR'",
+                    err=True,
+                )
+                raise typer.Exit(1)
+            provider, env_var = ref.split(":", 1)
+            if provider not in valid_providers:
+                typer.echo(
+                    f"Error: Unknown provider '{provider}'. "
+                    f"Available: {', '.join(sorted(valid_providers))}",
+                    err=True,
+                )
+                raise typer.Exit(1)
+            key_refs[provider] = env_var
+
     try:
         summaries = asyncio.run(
-            _run_with_progress(path, models, not no_cache, is_experiment, quiet)
+            _run_with_progress(
+                path, models, not no_cache, is_experiment, quiet, key_refs
+            )
         )
         if is_experiment and summaries:
             display_hypothesis(summaries[0].hypothesis)

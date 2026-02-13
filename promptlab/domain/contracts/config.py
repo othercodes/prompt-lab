@@ -12,6 +12,7 @@ class ExperimentConfig:
     hypothesis: str = ""
     runs: int = 5
     metadata: dict[str, Any] = field(default_factory=dict)
+    key_refs: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass

@@ -283,6 +283,52 @@ def test_load_variant_judge_invalid_aggregation(
         loader.load_variant(tmp_path / "v1")
 
 
+# --- key_refs ---
+
+
+def test_load_experiment_key_refs(loader: YamlConfigLoader, tmp_path: Path):
+    (tmp_path / "experiment.md").write_text(
+        "---\nname: test\nmodels: [openai:gpt-4o]\n"
+        "key_refs:\n  openai: MY_OPENAI_KEY\n  anthropic: MY_ANTHROPIC_KEY\n---\n"
+    )
+
+    config = loader.load_experiment(tmp_path)
+
+    assert config.key_refs == {
+        "openai": "MY_OPENAI_KEY",
+        "anthropic": "MY_ANTHROPIC_KEY",
+    }
+
+
+def test_load_experiment_key_refs_default(loader: YamlConfigLoader, tmp_path: Path):
+    (tmp_path / "experiment.md").write_text(
+        "---\nname: test\nmodels: [openai:gpt-4o]\n---\n"
+    )
+
+    config = loader.load_experiment(tmp_path)
+
+    assert config.key_refs == {}
+
+
+@pytest.mark.parametrize(
+    "bad_key_refs",
+    [
+        "key_refs: not-a-dict\n",
+        "key_refs:\n  - openai\n  - anthropic\n",
+        "key_refs:\n  openai: 123\n",
+    ],
+)
+def test_load_experiment_key_refs_invalid(
+    loader: YamlConfigLoader, tmp_path: Path, bad_key_refs: str
+):
+    (tmp_path / "experiment.md").write_text(
+        f"---\nname: test\nmodels: [openai:gpt-4o]\n{bad_key_refs}---\n"
+    )
+
+    with pytest.raises(YamlConfigLoaderError, match="key_refs must be a mapping"):
+        loader.load_experiment(tmp_path)
+
+
 # --- discover_variants ---
 
 

@@ -32,6 +32,8 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 Only the keys for providers you use are required.
 
+You can also use custom environment variable names per provider — see [Custom API Key References](#custom-api-key-references).
+
 ### Development
 
 ```bash
@@ -119,6 +121,7 @@ Optional markdown content describing the experiment.
 | `models` | required | List of models to test |
 | `runs` | `5` | Runs per input (for statistical analysis) |
 | `hypothesis` | `""` | What you're testing (displayed in results) |
+| `key_refs` | `{}` | Custom env var names per provider (see [Custom API Key References](#custom-api-key-references)) |
 
 ### prompt.md (user message)
 
@@ -431,6 +434,7 @@ prompt-lab run experiments/my-experiment -q
 | `--model` | `-m` | Run only this model |
 | `--no-cache` | | Disable response caching |
 | `--quiet` | `-q` | Hide progress bar |
+| `--key-ref` | `-k` | Custom env var for provider API key (format: `provider:ENV_VAR`) |
 
 ### results
 
@@ -505,6 +509,44 @@ prompt-lab cache clear
 |----------|--------------|
 | OpenAI | `openai:gpt-4o`, `openai:gpt-4o-mini` |
 | Anthropic | `anthropic:claude-sonnet-4-20250514` |
+
+## Custom API Key References
+
+By default, prompt-lab reads `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` from the environment. You can override these per provider using custom environment variable names.
+
+### Via CLI
+
+Use `--key-ref` (or `-k`) with the format `provider:ENV_VAR`:
+
+```bash
+# Single provider
+prompt-lab run experiments/my-experiment -k openai:MY_OPENAI_KEY
+
+# Multiple providers
+prompt-lab run experiments/my-experiment \
+  --key-ref openai:TEAM_OPENAI_KEY \
+  --key-ref anthropic:TEAM_ANTHROPIC_KEY
+```
+
+### Via experiment.md
+
+Add `key_refs` to the frontmatter:
+
+```yaml
+---
+name: my-experiment
+models:
+  - openai:gpt-4o-mini
+  - anthropic:claude-sonnet-4-20250514
+key_refs:
+  openai: TEAM_OPENAI_KEY
+  anthropic: TEAM_ANTHROPIC_KEY
+---
+```
+
+### Precedence
+
+CLI `--key-ref` flags override `key_refs` in `experiment.md`, which override the defaults. Custom key refs apply to all provider calls, including judge evaluation.
 
 ## References
 

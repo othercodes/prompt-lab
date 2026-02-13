@@ -32,6 +32,13 @@ class YamlConfigLoader(ConfigLoaderContract):
         models = metadata.pop("models", [])
         hypothesis = metadata.pop("hypothesis", "")
         runs = metadata.pop("runs", 5)
+        key_refs = metadata.pop("key_refs", {})
+        if not isinstance(key_refs, dict) or not all(
+            isinstance(k, str) and isinstance(v, str) for k, v in key_refs.items()
+        ):
+            raise YamlConfigLoaderError(
+                f"key_refs must be a mapping of provider name to env var name in {experiment_file}"
+            )
 
         if not models:
             raise YamlConfigLoaderError(f"No models specified in {experiment_file}")
@@ -43,6 +50,7 @@ class YamlConfigLoader(ConfigLoaderContract):
             hypothesis=hypothesis,
             runs=int(runs),
             metadata=metadata,
+            key_refs=key_refs,
         )
 
     def load_variant(self, variant_path: Path) -> VariantConfig:

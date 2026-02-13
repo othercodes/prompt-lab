@@ -8,7 +8,11 @@ from jinja2 import Template
 
 from ..domain.contracts.cache import CacheContract
 from ..domain.contracts.config import ConfigLoaderContract, InputCase
-from ..domain.contracts.provider import ProviderContract, ProviderResponse
+from ..domain.contracts.provider import (
+    ProviderContract,
+    ProviderFactory,
+    ProviderResponse,
+)
 from ..domain.contracts.results import ResultRepositoryContract, RunResult, RunSummary
 from ..domain.statistics import calculate_stats
 from .evaluate_response import EvaluateResponse
@@ -24,13 +28,14 @@ class RunExperiment:
         config_loader: ConfigLoaderContract,
         result_repository: ResultRepositoryContract,
         cache: CacheContract | None,
-        provider_factory: Callable[[str], ProviderContract],
+        provider_factory: ProviderFactory,
+        key_refs: dict[str, str] | None = None,
     ) -> None:
         self._config_loader = config_loader
         self._result_repository = result_repository
         self._cache = cache
         self._provider_factory = provider_factory
-        self._evaluator = EvaluateResponse(provider_factory)
+        self._key_refs = key_refs or {}
 
     async def run_variant(
         self,
@@ -43,6 +48,15 @@ class RunExperiment:
         timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 
         config = self._config_loader.load_variant(variant_path)
+
+        # Merge key_refs: CLI overrides config
+        merged_refs = {**config.experiment.key_refs, **self._key_refs}
+
+        # Create narrowed factory with key_refs baked in
+        def provider_factory(name: str) -> ProviderContract:
+            return self._provider_factory(name, merged_refs.get(name))
+
+        evaluator = EvaluateResponse(provider_factory)
 
         run_models = models if models else config.models
         runs_count = config.experiment.runs
@@ -84,6 +98,8 @@ class RunExperiment:
                         judge_config=config.judge,
                         cache=effective_cache,
                         run_number=run_num,
+                        provider_factory=provider_factory,
+                        evaluator=evaluator,
                     )
                     tasks.append(task)
 
@@ -165,9 +181,11 @@ class RunExperiment:
         judge_config: Any,
         cache: CacheContract | None,
         run_number: int,
+        provider_factory: Callable[[str], ProviderContract],
+        evaluator: EvaluateResponse,
     ) -> RunResult:
         provider_name, model = self._parse_model_id(model_id)
-        provider = self._provider_factory(provider_name)
+        provider = provider_factory(provider_name)
         full_model_id = f"{provider.name}:{model}"
 
         cached = False
@@ -201,7 +219,7 @@ class RunExperiment:
             Template(system_prompt).render(**input_case.data) if system_prompt else ""
         )
 
-        judge_result = await self._evaluator.execute(
+        judge_result = await evaluator.execute(
             judge_config=judge_config,
             prompt=rendered_prompt,
             system_prompt=rendered_system,

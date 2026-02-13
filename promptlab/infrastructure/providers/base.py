@@ -3,7 +3,7 @@ from abc import ABC
 from jinja2 import StrictUndefined, Template, UndefinedError
 
 from ...domain.contracts.provider import ProviderContract, ProviderResponse, ToolCall
-from .factory import get_provider, parse_model_id
+from .factory import get_provider, known_providers, parse_model_id
 
 # Re-export for backward compatibility
 __all__ = [
@@ -12,6 +12,7 @@ __all__ = [
     "ProviderResponse",
     "ToolCall",
     "get_provider",
+    "known_providers",
     "parse_model_id",
 ]
 
