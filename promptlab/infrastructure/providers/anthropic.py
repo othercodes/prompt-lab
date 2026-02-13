@@ -10,10 +10,10 @@ from .base import Provider
 
 
 class AnthropicProvider(Provider):
-    def __init__(self) -> None:
-        api_key = os.getenv("ANTHROPIC_API_KEY")
+    def __init__(self, api_key_env_var: str = "ANTHROPIC_API_KEY") -> None:
+        api_key = os.getenv(api_key_env_var)
         if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY environment variable not set")
+            raise ValueError(f"{api_key_env_var} environment variable not set")
         self.client = AsyncAnthropic(api_key=api_key)
 
     @property

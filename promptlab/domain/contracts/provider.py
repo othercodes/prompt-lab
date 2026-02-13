@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
 
 
 @dataclass
@@ -17,6 +17,16 @@ class ProviderResponse:
     output_tokens: int = 0
     latency_ms: int = 0
     raw: dict[str, Any] = field(default_factory=dict)
+
+
+class ProviderConstructor(Protocol):
+    def __call__(self, api_key_env_var: str = ...) -> "ProviderContract": ...
+
+
+class ProviderFactory(Protocol):
+    def __call__(
+        self, provider_name: str, api_key_env_var: str | None = None
+    ) -> "ProviderContract": ...
 
 
 class ProviderContract(ABC):
