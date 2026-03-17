@@ -124,6 +124,7 @@ class RunExperiment:
             duration_seconds=round(duration, 2),
             cached_responses=cached_count,
             hypothesis=config.experiment.hypothesis,
+            score_range=config.judge.score_range,
             results=results_list,
             stats=stats,
         )
