@@ -1,6 +1,6 @@
 [project]
 name = "llm-prompt-lab"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Test prompt variants across LLM providers with LLM-as-judge evaluation"
 readme = "README.md"
 license = "MIT"
@@ -26,8 +26,15 @@ dev = [
 prompt-lab = "promptlab.cli:app"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+fallback-version = "0.0.0.dev0"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "promptlab/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["promptlab"]
@@ -36,12 +43,16 @@ packages = ["promptlab"]
 "promptlab/application/prompts/judge_suffix.md" = "promptlab/application/prompts/judge_suffix.md"
 "promptlab/application/prompts/judge_cot_prefix.md" = "promptlab/application/prompts/judge_cot_prefix.md"
 
+[tool.ruff]
+exclude = ["promptlab/_version.py"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 
 [tool.mypy]
 python_version = "3.11"
+exclude = ["promptlab/_version\\.py$"]
 strict = true
 ignore_missing_imports = true
 warn_return_any = false
