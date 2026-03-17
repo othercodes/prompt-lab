@@ -31,6 +31,7 @@ class FileResultRepository(ResultRepositoryContract):
             "runs_per_input": summary.runs_per_input,
             "duration_seconds": summary.duration_seconds,
             "cached_responses": summary.cached_responses,
+            "score_range": list(summary.score_range),
         }
 
         with open(results_dir / "run.yaml", "w") as f:
@@ -98,6 +99,7 @@ class FileResultRepository(ResultRepositoryContract):
             runs_per_input=meta.get("runs_per_input", 1),
             duration_seconds=meta["duration_seconds"],
             cached_responses=meta["cached_responses"],
+            score_range=tuple(meta.get("score_range", [1, 10])),
             results=results,
             stats=stats,
         )

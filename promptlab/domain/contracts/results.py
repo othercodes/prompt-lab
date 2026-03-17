@@ -42,6 +42,7 @@ class RunSummary:
     duration_seconds: float
     cached_responses: int
     hypothesis: str = ""
+    score_range: tuple[int, int] = (1, 10)
     results: list[RunResult] = field(default_factory=list)
     stats: list[InputStats] = field(default_factory=list)
 

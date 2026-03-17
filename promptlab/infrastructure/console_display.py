@@ -59,14 +59,15 @@ def _display_individual_results_table(
     table.add_column("Tokens", justify="right")
     table.add_column("Cached", justify="center")
 
+    score_max = summary.score_range[1]
     for result in summary.results:
         score = result.judge["score"]
-        score_style = _score_style(score)
+        score_style = _score_style(score, summary.score_range)
 
         table.add_row(
             result.input_id,
             result.model,
-            Text(f"{score}/10", style=score_style),
+            Text(f"{score}/{score_max}", style=score_style),
             f"{result.latency_ms}ms",
             f"{result.input_tokens + result.output_tokens}",
             "[green]Yes[/green]" if result.cached else "[dim]No[/dim]",
@@ -80,7 +81,7 @@ def _display_individual_results_table(
 
     console.print(
         f"[dim]Duration: {summary.duration_seconds}s | "
-        f"Avg Score: {avg_score:.1f}/10 | "
+        f"Avg Score: {avg_score:.1f}/{score_max} | "
         f"Avg Latency: {avg_latency:.0f}ms | "
         f"Cached: {summary.cached_responses}/{len(summary.results)}[/dim]"
     )
@@ -107,7 +108,7 @@ def _display_stats_table(summary: RunSummary, show_hypothesis: bool = True) -> N
     table.add_column("Scores", justify="left")
 
     for stat in summary.stats:
-        score_style = _score_style(stat.mean)
+        score_style = _score_style(stat.mean, summary.score_range)
 
         mean_display = f"{stat.mean:.1f}"
         ci_display = f"({stat.ci_lower:.1f}-{stat.ci_upper:.1f})"
@@ -141,7 +142,7 @@ def _display_stats_table(summary: RunSummary, show_hypothesis: bool = True) -> N
 
     console.print(
         f"[dim]Duration: {summary.duration_seconds}s | "
-        f"Overall Mean: {overall_mean:.1f}/10 | "
+        f"Overall Mean: {overall_mean:.1f}/{summary.score_range[1]} | "
         f"Avg Latency: {avg_latency:.0f}ms | "
         f"Total Runs: {len(summary.results)}[/dim]"
     )
@@ -196,7 +197,7 @@ def display_compare_table(experiment_path: Path) -> None:
             avg_latency = sum(r.latency_ms for r in summary.results) / len(
                 summary.results
             )
-            score_style = _score_style(avg_score)
+            score_style = _score_style(avg_score, summary.score_range)
 
             runs_info = f"{len(summary.results)}"
             if summary.runs_per_input > 1:
@@ -204,7 +205,7 @@ def display_compare_table(experiment_path: Path) -> None:
 
             table.add_row(
                 variant_path.name,
-                Text(f"{avg_score:.1f}/10", style=score_style),
+                Text(f"{avg_score:.1f}/{summary.score_range[1]}", style=score_style),
                 f"[dim]{ci_display}[/dim]",
                 f"{avg_latency:.0f}ms",
                 runs_info,
@@ -268,10 +269,12 @@ def display_response(
         return
 
     for result in results:
-        _display_single_response(result)
+        _display_single_response(result, summary.score_range)
 
 
-def _display_single_response(result: RunResult) -> None:
+def _display_single_response(
+    result: RunResult, score_range: tuple[int, int] = (1, 10)
+) -> None:
     content = []
 
     content.append("[bold cyan]RESPONSE[/bold cyan]")
@@ -295,8 +298,8 @@ def _display_single_response(result: RunResult) -> None:
     content.append("[bold cyan]JUDGE[/bold cyan]")
     content.append("[dim]─────[/dim]")
     score = result.judge["score"]
-    score_style = _score_style(score)
-    content.append(f"Score: [{score_style}]{score}/10[/{score_style}]")
+    score_style = _score_style(score, score_range)
+    content.append(f"Score: [{score_style}]{score}/{score_range[1]}[/{score_style}]")
     reasoning = result.judge.get("reasoning", "")
     if reasoning:
         content.append(f"Reasoning: {reasoning}")
@@ -352,12 +355,14 @@ def display_run_complete(summary: RunSummary, show_hypothesis: bool = True) -> N
     display_results_table(summary, show_hypothesis)
 
 
-def _score_style(score: float) -> str:
-    if score >= 8:
+def _score_style(score: float, score_range: tuple[int, int] = (1, 10)) -> str:
+    score_min, score_max = score_range
+    range_size = score_max - score_min
+    if score >= score_min + range_size * 0.8:
         return "bold green"
-    elif score >= 6:
+    elif score >= score_min + range_size * 0.6:
         return "yellow"
-    elif score >= 4:
+    elif score >= score_min + range_size * 0.4:
         return "orange3"
     else:
         return "bold red"
