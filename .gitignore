@@ -5,6 +5,7 @@
 .cache/
 
 # Python
+promptlab/_version.py
 __pycache__/
 *.py[cod]
 *$py.class
@@ -41,7 +42,6 @@ Thumbs.db
 .omc/
 
 # uv dependencies
-uv.lock
 
 # Experiment results
 experiments/**/results/
