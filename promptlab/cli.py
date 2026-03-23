@@ -6,6 +6,8 @@ from typing import Annotated, Any
 import typer
 from dotenv import find_dotenv, load_dotenv
 
+from promptlab import __version__
+
 from promptlab.application.create_experiment import (
     CreateExperiment,
     CreateExperimentError,
@@ -26,11 +28,35 @@ from promptlab.infrastructure.providers.factory import get_provider, known_provi
 
 load_dotenv(find_dotenv(usecwd=True), override=True)
 
+
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(f"prompt-lab {__version__}")
+        raise typer.Exit()
+
+
 app = typer.Typer(
     name="prompt-lab",
     help="Test prompt variants across LLM providers with LLM-as-judge evaluation",
     no_args_is_help=True,
 )
+
+
+@app.callback(invoke_without_command=True)
+def main(
+    version: Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            "-v",
+            help="Show version and exit",
+            callback=_version_callback,
+            is_eager=True,
+        ),
+    ] = False,
+) -> None:
+    pass
+
 
 cache_app = typer.Typer(help="Cache management commands")
 app.add_typer(cache_app, name="cache")
