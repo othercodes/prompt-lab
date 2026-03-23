@@ -240,6 +240,7 @@ class RunExperiment:
                 prompt=rendered_prompt,
                 system_prompt=rendered_system,
                 response=response,
+                input_data=input_case.data,
             )
 
             return RunResult(

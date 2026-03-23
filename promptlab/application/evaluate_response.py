@@ -63,8 +63,10 @@ class EvaluateResponse:
         prompt: str,
         system_prompt: str,
         response: ProviderResponse,
+        input_data: dict[str, Any] | None = None,
     ) -> JudgeResult:
         judge_input = {
+            **(input_data or {}),
             "prompt": prompt,
             "system_prompt": system_prompt,
             "response": response.content,
