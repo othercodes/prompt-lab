@@ -43,6 +43,7 @@ class RunExperiment:
         models: list[str] | None = None,
         use_cache: bool = True,
         on_progress: Callable[[], None] | None = None,
+        max_concurrency: int | None = None,
     ) -> RunSummary:
         start_time = time.perf_counter()
         timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
@@ -79,6 +80,13 @@ class RunExperiment:
                 for t in config.tools
             ]
 
+        effective_concurrency = (
+            max_concurrency
+            if max_concurrency is not None
+            else config.experiment.max_concurrency
+        )
+        semaphore = asyncio.Semaphore(effective_concurrency)
+
         tasks = []
         for input_case in config.inputs:
             num_runs = input_case.runs if input_case.runs is not None else runs_count
@@ -90,6 +98,7 @@ class RunExperiment:
                     )
 
                     task = self._run_single(
+                        semaphore=semaphore,
                         model_id=model_id,
                         prompt=config.prompt.content,
                         system_prompt=config.prompt.system_content,
@@ -139,6 +148,7 @@ class RunExperiment:
         models: list[str] | None = None,
         use_cache: bool = True,
         on_progress: Callable[[], None] | None = None,
+        max_concurrency: int | None = None,
     ) -> list[RunSummary]:
         variants = self._config_loader.discover_variants(experiment_path)
         summaries = []
@@ -149,6 +159,7 @@ class RunExperiment:
                 models=models,
                 use_cache=use_cache,
                 on_progress=on_progress,
+                max_concurrency=max_concurrency,
             )
             summaries.append(summary)
 
@@ -174,6 +185,7 @@ class RunExperiment:
 
     async def _run_single(
         self,
+        semaphore: asyncio.Semaphore,
         model_id: str,
         prompt: str,
         system_prompt: str | None,
@@ -185,68 +197,71 @@ class RunExperiment:
         provider_factory: Callable[[str], ProviderContract],
         evaluator: EvaluateResponse,
     ) -> RunResult:
-        provider_name, model = self._parse_model_id(model_id)
-        provider = provider_factory(provider_name)
-        full_model_id = f"{provider.name}:{model}"
+        async with semaphore:
+            provider_name, model = self._parse_model_id(model_id)
+            provider = provider_factory(provider_name)
+            full_model_id = f"{provider.name}:{model}"
 
-        cached = False
-        response: ProviderResponse | None = None
-
-        if cache:
-            cache_key = cache.make_key(
-                prompt=prompt,
-                input_data=input_case.data,
-                model=full_model_id,
-                tools=tools,
-            )
-            response = cache.get(cache_key)
-            if response:
-                cached = True
-
-        if not response:
-            response = await provider.execute(
-                model=model,
-                prompt=prompt,
-                user_input=input_case.data,
-                tools=tools,
-                system_prompt=system_prompt,
-            )
+            cached = False
+            response: ProviderResponse | None = None
 
             if cache:
-                cache.put(cache_key, response)
+                cache_key = cache.make_key(
+                    prompt=prompt,
+                    input_data=input_case.data,
+                    model=full_model_id,
+                    tools=tools,
+                )
+                response = cache.get(cache_key)
+                if response:
+                    cached = True
 
-        rendered_prompt = Template(prompt).render(**input_case.data)
-        rendered_system = (
-            Template(system_prompt).render(**input_case.data) if system_prompt else ""
-        )
+            if not response:
+                response = await provider.execute(
+                    model=model,
+                    prompt=prompt,
+                    user_input=input_case.data,
+                    tools=tools,
+                    system_prompt=system_prompt,
+                )
 
-        judge_result = await evaluator.execute(
-            judge_config=judge_config,
-            prompt=rendered_prompt,
-            system_prompt=rendered_system,
-            response=response,
-        )
+                if cache:
+                    cache.put(cache_key, response)
 
-        return RunResult(
-            input_id=input_case.id,
-            model=full_model_id,
-            run_number=run_number,
-            cached=cached,
-            latency_ms=response.latency_ms,
-            input_tokens=response.input_tokens,
-            output_tokens=response.output_tokens,
-            response={
-                "content": response.content,
-                "tool_calls": [
-                    {"name": tc.name, "arguments": tc.arguments}
-                    for tc in response.tool_calls
-                ],
-            },
-            judge={
-                "score": judge_result.score,
-                "reasoning": judge_result.reasoning,
-            },
-        )
+            rendered_prompt = Template(prompt).render(**input_case.data)
+            rendered_system = (
+                Template(system_prompt).render(**input_case.data)
+                if system_prompt
+                else ""
+            )
+
+            judge_result = await evaluator.execute(
+                judge_config=judge_config,
+                prompt=rendered_prompt,
+                system_prompt=rendered_system,
+                response=response,
+            )
+
+            return RunResult(
+                input_id=input_case.id,
+                model=full_model_id,
+                run_number=run_number,
+                cached=cached,
+                latency_ms=response.latency_ms,
+                input_tokens=response.input_tokens,
+                output_tokens=response.output_tokens,
+                response={
+                    "content": response.content,
+                    "tool_calls": [
+                        {"name": tc.name, "arguments": tc.arguments}
+                        for tc in response.tool_calls
+                    ],
+                },
+                judge={
+                    "score": judge_result.score,
+                    "reasoning": judge_result.reasoning,
+                },
+            )
 
     def _parse_model_id(self, model_id: str) -> tuple[str, str]:
         if ":" not in model_id:

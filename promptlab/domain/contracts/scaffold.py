@@ -30,5 +30,6 @@ class ExperimentSpec:
     description: str = ""
     hypothesis: str = ""
     runs: int = 5
+    max_concurrency: int = 10
     path: str = "experiments"
     judge: JudgeSpec = field(default_factory=JudgeSpec)
