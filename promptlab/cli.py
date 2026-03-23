@@ -24,7 +24,7 @@ from promptlab.infrastructure.console_display import (
 from promptlab.infrastructure.experiment_scaffolder import ExperimentScaffolder
 from promptlab.infrastructure.providers.factory import get_provider, known_providers
 
-load_dotenv(find_dotenv(usecwd=True))
+load_dotenv(find_dotenv(usecwd=True), override=True)
 
 app = typer.Typer(
     name="prompt-lab",
