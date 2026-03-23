@@ -26,6 +26,7 @@ class ExperimentScaffolder:
             "hypothesis": spec.hypothesis,
             "models": spec.models,
             "runs": spec.runs,
+            "max_concurrency": spec.max_concurrency,
         }
 
         body = spec.description if spec.description else f"# {spec.name}"

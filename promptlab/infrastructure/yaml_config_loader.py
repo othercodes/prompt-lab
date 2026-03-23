@@ -32,6 +32,7 @@ class YamlConfigLoader(ConfigLoaderContract):
         models = metadata.pop("models", [])
         hypothesis = metadata.pop("hypothesis", "")
         runs = metadata.pop("runs", 5)
+        max_concurrency = metadata.pop("max_concurrency", 10)
         key_refs = metadata.pop("key_refs", {})
         if not isinstance(key_refs, dict) or not all(
             isinstance(k, str) and isinstance(v, str) for k, v in key_refs.items()
@@ -49,6 +50,7 @@ class YamlConfigLoader(ConfigLoaderContract):
             models=models,
             hypothesis=hypothesis,
             runs=int(runs),
+            max_concurrency=int(max_concurrency),
             metadata=metadata,
             key_refs=key_refs,
         )

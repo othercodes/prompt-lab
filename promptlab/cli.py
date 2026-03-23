@@ -153,16 +153,27 @@ async def _run_with_progress(
     is_experiment: bool,
     quiet: bool = False,
     key_refs: dict[str, str] | None = None,
+    max_concurrency: int | None = None,
 ) -> list[Any]:
     runner = _create_runner(use_cache, key_refs)
 
     if quiet:
         if is_experiment:
             return await runner.run_all_variants(
-                path, models=models, use_cache=use_cache
+                path,
+                models=models,
+                use_cache=use_cache,
+                max_concurrency=max_concurrency,
             )
         else:
-            return [await runner.run_variant(path, models=models, use_cache=use_cache)]
+            return [
+                await runner.run_variant(
+                    path,
+                    models=models,
+                    use_cache=use_cache,
+                    max_concurrency=max_concurrency,
+                )
+            ]
 
     if is_experiment:
         total = runner.count_experiment_tasks(path, models)
@@ -178,12 +189,20 @@ async def _run_with_progress(
 
         if is_experiment:
             return await runner.run_all_variants(
-                path, models=models, use_cache=use_cache, on_progress=on_progress
+                path,
+                models=models,
+                use_cache=use_cache,
+                on_progress=on_progress,
+                max_concurrency=max_concurrency,
             )
         else:
             return [
                 await runner.run_variant(
-                    path, models=models, use_cache=use_cache, on_progress=on_progress
+                    path,
+                    models=models,
+                    use_cache=use_cache,
+                    on_progress=on_progress,
+                    max_concurrency=max_concurrency,
                 )
             ]
 
@@ -243,6 +262,14 @@ def run(
             help="Custom env var for provider API key (format: provider:ENV_VAR)",
         ),
     ] = None,
+    max_concurrency: Annotated[
+        int | None,
+        typer.Option(
+            "--max-concurrency",
+            "-c",
+            help="Max concurrent API calls (default: 10, overrides experiment config)",
+        ),
+    ] = None,
 ) -> None:
     path = path.resolve()
 
@@ -280,7 +307,13 @@ def run(
     try:
         summaries = asyncio.run(
             _run_with_progress(
-                path, models, not no_cache, is_experiment, quiet, key_refs
+                path,
+                models,
+                not no_cache,
+                is_experiment,
+                quiet,
+                key_refs,
+                max_concurrency,
             )
         )
         if is_experiment and summaries:

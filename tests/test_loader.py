@@ -40,9 +40,6 @@ def _create_experiment(
     return variant_dir
 
 
-# --- load_experiment ---
-
-
 def test_load_experiment_loads_config(loader: YamlConfigLoader):
     config = loader.load_experiment(SAMPLE_EXPERIMENT)
 
@@ -82,9 +79,6 @@ def test_load_experiment_runs(
 
     config = loader.load_experiment(tmp_path)
     assert config.runs == expected
-
-
-# --- load_variant ---
 
 
 def test_load_variant_loads_complete(loader: YamlConfigLoader):
@@ -186,9 +180,6 @@ def test_load_variant_reads_input_runs_override(
     assert variant.inputs[1].runs is None
 
 
-# --- judge config via load_variant ---
-
-
 @pytest.mark.parametrize(
     "judge_yaml,expected",
     [
@@ -283,7 +274,23 @@ def test_load_variant_judge_invalid_aggregation(
         loader.load_variant(tmp_path / "v1")
 
 
-# --- key_refs ---
+@pytest.mark.parametrize(
+    "yaml_value,expected",
+    [
+        ("", 10),
+        ("max_concurrency: 5\n", 5),
+        ("max_concurrency: 1\n", 1),
+    ],
+)
+def test_load_experiment_max_concurrency(
+    loader: YamlConfigLoader, tmp_path: Path, yaml_value: str, expected: int
+):
+    (tmp_path / "experiment.md").write_text(
+        f"---\nname: test\nmodels: [openai:gpt-4o]\n{yaml_value}---\n"
+    )
+
+    config = loader.load_experiment(tmp_path)
+    assert config.max_concurrency == expected
 
 
 def test_load_experiment_key_refs(loader: YamlConfigLoader, tmp_path: Path):
@@ -327,9 +334,6 @@ def test_load_experiment_key_refs_invalid(
 
     with pytest.raises(YamlConfigLoaderError, match="key_refs must be a mapping"):
         loader.load_experiment(tmp_path)
-
-
-# --- discover_variants ---
 
 
 def test_discover_variants_finds_all(loader: YamlConfigLoader):
