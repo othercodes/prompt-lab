@@ -40,7 +40,7 @@ def _create_experiment(
     return variant_dir
 
 
-def test_load_experiment_loads_config(loader: YamlConfigLoader):
+def test_load_experiment_should_load_config(loader: YamlConfigLoader):
     config = loader.load_experiment(SAMPLE_EXPERIMENT)
 
     assert config.name == "sample-experiment"
@@ -49,12 +49,14 @@ def test_load_experiment_loads_config(loader: YamlConfigLoader):
     assert "anthropic:claude-sonnet-4-20250514" in config.models
 
 
-def test_load_experiment_raises_when_no_file(loader: YamlConfigLoader, tmp_path: Path):
+def test_load_experiment_should_raise_when_no_file(
+    loader: YamlConfigLoader, tmp_path: Path
+):
     with pytest.raises(YamlConfigLoaderError, match="experiment.md not found"):
         loader.load_experiment(tmp_path)
 
 
-def test_load_experiment_raises_when_no_models(
+def test_load_experiment_should_raise_when_no_models(
     loader: YamlConfigLoader, tmp_path: Path
 ):
     (tmp_path / "experiment.md").write_text("---\nname: test\n---\n")
@@ -70,7 +72,7 @@ def test_load_experiment_raises_when_no_models(
         ("runs: 10\n", 10),
     ],
 )
-def test_load_experiment_runs(
+def test_load_experiment_should_parse_runs(
     loader: YamlConfigLoader, tmp_path: Path, yaml_value: str, expected: int
 ):
     (tmp_path / "experiment.md").write_text(
@@ -81,7 +83,7 @@ def test_load_experiment_runs(
     assert config.runs == expected
 
 
-def test_load_variant_loads_complete(loader: YamlConfigLoader):
+def test_load_variant_should_load_complete_config(loader: YamlConfigLoader):
     variant = loader.load_variant(SAMPLE_VARIANT)
 
     assert variant.experiment.name == "sample-experiment"
@@ -91,7 +93,7 @@ def test_load_variant_loads_complete(loader: YamlConfigLoader):
     assert "openai:gpt-4o" in variant.models
 
 
-def test_load_variant_reads_prompt(loader: YamlConfigLoader, tmp_path: Path):
+def test_load_variant_should_read_prompt(loader: YamlConfigLoader, tmp_path: Path):
     _create_experiment(tmp_path, prompt="Be a {{ role }} assistant")
 
     variant = loader.load_variant(tmp_path / "v1")
@@ -99,7 +101,9 @@ def test_load_variant_reads_prompt(loader: YamlConfigLoader, tmp_path: Path):
     assert "Be a {{ role }} assistant" in variant.prompt.content
 
 
-def test_load_variant_raises_when_no_prompt(loader: YamlConfigLoader, tmp_path: Path):
+def test_load_variant_should_raise_when_no_prompt(
+    loader: YamlConfigLoader, tmp_path: Path
+):
     (tmp_path / "experiment.md").write_text(
         "---\nname: test\nmodels: [openai:gpt-4o]\n---\n"
     )
@@ -111,7 +115,9 @@ def test_load_variant_raises_when_no_prompt(loader: YamlConfigLoader, tmp_path: 
         loader.load_variant(variant_dir)
 
 
-def test_load_variant_raises_when_no_judge(loader: YamlConfigLoader, tmp_path: Path):
+def test_load_variant_should_raise_when_no_judge(
+    loader: YamlConfigLoader, tmp_path: Path
+):
     (tmp_path / "experiment.md").write_text(
         "---\nname: test\nmodels: [openai:gpt-4o]\n---\n"
     )
@@ -130,7 +136,7 @@ def test_load_variant_raises_when_no_judge(loader: YamlConfigLoader, tmp_path: P
         (None, None),
     ],
 )
-def test_load_variant_system_md(
+def test_load_variant_should_read_system_md(
     loader: YamlConfigLoader, tmp_path: Path, system: str | None, expected: str | None
 ):
     _create_experiment(tmp_path, system=system)
@@ -140,7 +146,7 @@ def test_load_variant_system_md(
     assert variant.prompt.system_content == expected
 
 
-def test_load_variant_reads_inputs(loader: YamlConfigLoader, tmp_path: Path):
+def test_load_variant_should_read_inputs(loader: YamlConfigLoader, tmp_path: Path):
     _create_experiment(
         tmp_path,
         inputs="- id: greeting-1\n  message: Hello!\n- id: greeting-2\n  message: Hi!\n",
@@ -154,7 +160,7 @@ def test_load_variant_reads_inputs(loader: YamlConfigLoader, tmp_path: Path):
     assert variant.inputs[1].id == "greeting-2"
 
 
-def test_load_variant_defaults_inputs_when_missing(
+def test_load_variant_should_default_inputs_when_missing(
     loader: YamlConfigLoader, tmp_path: Path
 ):
     _create_experiment(tmp_path)
@@ -166,7 +172,7 @@ def test_load_variant_defaults_inputs_when_missing(
     assert variant.inputs[0].data == {}
 
 
-def test_load_variant_reads_input_runs_override(
+def test_load_variant_should_read_input_runs_override(
     loader: YamlConfigLoader, tmp_path: Path
 ):
     _create_experiment(
@@ -188,7 +194,7 @@ def test_load_variant_reads_input_runs_override(
         ("---\nmodel: openai:gpt-4o\nchain_of_thought: false\n---\nEvaluate.\n", False),
     ],
 )
-def test_load_variant_judge_chain_of_thought(
+def test_load_variant_should_parse_judge_chain_of_thought(
     loader: YamlConfigLoader, tmp_path: Path, judge_yaml: str, expected: bool
 ):
     _create_experiment(tmp_path, judge=judge_yaml)
@@ -198,7 +204,9 @@ def test_load_variant_judge_chain_of_thought(
     assert variant.judge.chain_of_thought is expected
 
 
-def test_load_variant_judge_single_model(loader: YamlConfigLoader, tmp_path: Path):
+def test_load_variant_should_parse_judge_single_model(
+    loader: YamlConfigLoader, tmp_path: Path
+):
     _create_experiment(tmp_path)
 
     variant = loader.load_variant(tmp_path / "v1")
@@ -209,7 +217,9 @@ def test_load_variant_judge_single_model(loader: YamlConfigLoader, tmp_path: Pat
     assert variant.judge.judge_models == ["openai:gpt-4o"]
 
 
-def test_load_variant_judge_multi_model(loader: YamlConfigLoader, tmp_path: Path):
+def test_load_variant_should_parse_judge_multi_model(
+    loader: YamlConfigLoader, tmp_path: Path
+):
     _create_experiment(
         tmp_path,
         judge=(
@@ -241,7 +251,7 @@ def test_load_variant_judge_multi_model(loader: YamlConfigLoader, tmp_path: Path
         ("aggregation: median\n", "median"),
     ],
 )
-def test_load_variant_judge_aggregation(
+def test_load_variant_should_parse_judge_aggregation(
     loader: YamlConfigLoader, tmp_path: Path, aggregation_yaml: str, expected: str
 ):
     _create_experiment(
@@ -262,7 +272,7 @@ def test_load_variant_judge_aggregation(
     assert variant.judge.aggregation == expected
 
 
-def test_load_variant_judge_invalid_aggregation(
+def test_load_variant_should_raise_when_judge_aggregation_invalid(
     loader: YamlConfigLoader, tmp_path: Path
 ):
     _create_experiment(
@@ -282,7 +292,7 @@ def test_load_variant_judge_invalid_aggregation(
         ("max_concurrency: 1\n", 1),
     ],
 )
-def test_load_experiment_max_concurrency(
+def test_load_experiment_should_parse_max_concurrency(
     loader: YamlConfigLoader, tmp_path: Path, yaml_value: str, expected: int
 ):
     (tmp_path / "experiment.md").write_text(
@@ -293,7 +303,9 @@ def test_load_experiment_max_concurrency(
     assert config.max_concurrency == expected
 
 
-def test_load_experiment_key_refs(loader: YamlConfigLoader, tmp_path: Path):
+def test_load_experiment_should_parse_key_refs(
+    loader: YamlConfigLoader, tmp_path: Path
+):
     (tmp_path / "experiment.md").write_text(
         "---\nname: test\nmodels: [openai:gpt-4o]\n"
         "key_refs:\n  openai: MY_OPENAI_KEY\n  anthropic: MY_ANTHROPIC_KEY\n---\n"
@@ -307,7 +319,9 @@ def test_load_experiment_key_refs(loader: YamlConfigLoader, tmp_path: Path):
     }
 
 
-def test_load_experiment_key_refs_default(loader: YamlConfigLoader, tmp_path: Path):
+def test_load_experiment_should_default_key_refs_when_missing(
+    loader: YamlConfigLoader, tmp_path: Path
+):
     (tmp_path / "experiment.md").write_text(
         "---\nname: test\nmodels: [openai:gpt-4o]\n---\n"
     )
@@ -325,7 +339,7 @@ def test_load_experiment_key_refs_default(loader: YamlConfigLoader, tmp_path: Pa
         "key_refs:\n  openai: 123\n",
     ],
 )
-def test_load_experiment_key_refs_invalid(
+def test_load_experiment_should_raise_when_key_refs_invalid(
     loader: YamlConfigLoader, tmp_path: Path, bad_key_refs: str
 ):
     (tmp_path / "experiment.md").write_text(
@@ -336,7 +350,7 @@ def test_load_experiment_key_refs_invalid(
         loader.load_experiment(tmp_path)
 
 
-def test_discover_variants_finds_all(loader: YamlConfigLoader):
+def test_discover_variants_should_find_all(loader: YamlConfigLoader):
     variants = loader.discover_variants(SAMPLE_EXPERIMENT)
 
     assert len(variants) == 2
@@ -345,7 +359,9 @@ def test_discover_variants_finds_all(loader: YamlConfigLoader):
     assert "v2" in variant_names
 
 
-def test_discover_variants_raises_when_none(loader: YamlConfigLoader, tmp_path: Path):
+def test_discover_variants_should_raise_when_none(
+    loader: YamlConfigLoader, tmp_path: Path
+):
     (tmp_path / "experiment.md").write_text(
         "---\nname: test\nmodels: [openai:gpt-4o]\n---\n"
     )

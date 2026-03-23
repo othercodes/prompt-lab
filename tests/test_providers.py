@@ -48,7 +48,7 @@ class _DummyProvider(Provider):
         ("anthropic:claude-sonnet-4-20250514", "anthropic", "claude-sonnet-4-20250514"),
     ],
 )
-def test_parse_model_id_valid(
+def test_parse_model_id_should_split_provider_and_model(
     model_id: str, expected_provider: str, expected_model: str
 ):
     provider, model = parse_model_id(model_id)
@@ -57,17 +57,17 @@ def test_parse_model_id_valid(
     assert model == expected_model
 
 
-def test_parse_model_id_raises_for_invalid():
+def test_parse_model_id_should_raise_when_invalid_format():
     with pytest.raises(ValueError, match="Invalid model ID"):
         parse_model_id("gpt-4o")
 
 
-def test_get_provider_raises_for_unknown():
+def test_get_provider_should_raise_when_unknown():
     with pytest.raises(ValueError, match="Unknown provider"):
         get_provider("unknown")
 
 
-def test_provider_response_default_values():
+def test_provider_response_should_have_default_values():
     response = ProviderResponse(content="Hello")
 
     assert response.content == "Hello"
@@ -77,7 +77,7 @@ def test_provider_response_default_values():
     assert response.latency_ms == 0
 
 
-def test_provider_response_with_tool_calls():
+def test_provider_response_should_include_tool_calls():
     tool_call = ToolCall(name="search", arguments={"query": "test"})
     response = ProviderResponse(
         content="Result",
@@ -88,7 +88,7 @@ def test_provider_response_with_tool_calls():
     assert response.tool_calls[0].name == "search"
 
 
-def test_provider_format_prompt_with_variables():
+def test_format_prompt_should_render_variables():
     provider = _DummyProvider()
     result = provider.format_prompt(
         "Hello {{ name }}, you are {{ age }}",
@@ -98,14 +98,14 @@ def test_provider_format_prompt_with_variables():
     assert result == "Hello Alice, you are 30"
 
 
-def test_provider_format_prompt_raises_for_missing():
+def test_format_prompt_should_raise_when_variable_missing():
     provider = _DummyProvider()
 
     with pytest.raises(ValueError, match="Missing input variable"):
         provider.format_prompt("Hello {{ name }}", {})
 
 
-def test_build_messages_without_system():
+def test_build_messages_should_exclude_system_when_not_provided():
     provider = _DummyProvider()
     system, user = provider.build_messages("Hello {{ name }}", {"name": "Alice"})
 
@@ -113,7 +113,7 @@ def test_build_messages_without_system():
     assert user == "Hello Alice"
 
 
-def test_build_messages_with_system():
+def test_build_messages_should_include_system_when_provided():
     provider = _DummyProvider()
     system, user = provider.build_messages(
         "Translate: {{ text }}",
@@ -125,7 +125,7 @@ def test_build_messages_with_system():
     assert user == "Translate: hello"
 
 
-def test_build_messages_hardcoded_no_vars():
+def test_build_messages_should_work_when_no_variables():
     provider = _DummyProvider()
     system, user = provider.build_messages("Tell me a joke", {})
 
@@ -137,7 +137,7 @@ def test_build_messages_hardcoded_no_vars():
 
 
 @patch("promptlab.infrastructure.providers.openai.AsyncOpenAI")
-def test_openai_provider_custom_env_var(
+def test_openai_provider_should_use_custom_env_var(
     mock_openai_client: MagicMock, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv("MY_OPENAI_KEY", "test-key-123")
@@ -149,7 +149,7 @@ def test_openai_provider_custom_env_var(
 
 
 @patch("promptlab.infrastructure.providers.anthropic.AsyncAnthropic")
-def test_anthropic_provider_custom_env_var(
+def test_anthropic_provider_should_use_custom_env_var(
     mock_anthropic_client: MagicMock, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv("MY_ANTHROPIC_KEY", "test-key-456")
@@ -161,7 +161,7 @@ def test_anthropic_provider_custom_env_var(
 
 
 @patch("promptlab.infrastructure.providers.openai.AsyncOpenAI")
-def test_openai_provider_default_env_var(
+def test_openai_provider_should_use_default_env_var(
     mock_openai_client: MagicMock, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv("OPENAI_API_KEY", "default-key-123")
@@ -173,7 +173,7 @@ def test_openai_provider_default_env_var(
 
 
 @patch("promptlab.infrastructure.providers.anthropic.AsyncAnthropic")
-def test_anthropic_provider_default_env_var(
+def test_anthropic_provider_should_use_default_env_var(
     mock_anthropic_client: MagicMock, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "default-key-456")
@@ -184,7 +184,9 @@ def test_anthropic_provider_default_env_var(
     mock_anthropic_client.assert_called_once_with(api_key="default-key-456")
 
 
-def test_provider_custom_env_var_missing(monkeypatch: pytest.MonkeyPatch):
+def test_provider_should_raise_when_custom_env_var_missing(
+    monkeypatch: pytest.MonkeyPatch,
+):
     monkeypatch.delenv("MY_CUSTOM_KEY", raising=False)
 
     with pytest.raises(ValueError, match="MY_CUSTOM_KEY environment variable not set"):
@@ -192,7 +194,7 @@ def test_provider_custom_env_var_missing(monkeypatch: pytest.MonkeyPatch):
 
 
 @patch("promptlab.infrastructure.providers.openai.AsyncOpenAI")
-def test_get_provider_forwards_api_key_env_var(
+def test_get_provider_should_forward_api_key_env_var(
     mock_openai_client: MagicMock, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv("MY_KEY", "forwarded-key-789")
@@ -204,7 +206,7 @@ def test_get_provider_forwards_api_key_env_var(
 
 
 @patch("promptlab.infrastructure.providers.openai.AsyncOpenAI")
-def test_get_provider_no_env_var_uses_default(
+def test_get_provider_should_use_default_when_no_env_var(
     mock_openai_client: MagicMock, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv("OPENAI_API_KEY", "default-factory-key")
@@ -215,7 +217,7 @@ def test_get_provider_no_env_var_uses_default(
     mock_openai_client.assert_called_once_with(api_key="default-factory-key")
 
 
-def test_experiment_config_key_refs_default():
+def test_experiment_config_should_have_empty_key_refs_when_default():
     config = ExperimentConfig(
         name="test-experiment",
         description="Test description",
@@ -226,7 +228,7 @@ def test_experiment_config_key_refs_default():
     assert isinstance(config.key_refs, dict)
 
 
-def test_key_refs_merge_cli_overrides_config():
+def test_key_refs_should_override_config_when_cli_provided():
     """CLI key_refs take precedence over experiment.md key_refs."""
     config_refs = {"openai": "CONFIG_OPENAI_KEY", "anthropic": "CONFIG_ANTHROPIC_KEY"}
     cli_refs = {"openai": "CLI_OPENAI_KEY"}
@@ -240,20 +242,20 @@ def test_key_refs_merge_cli_overrides_config():
 # --- known_providers ---
 
 
-def test_known_providers_returns_frozenset():
+def test_known_providers_should_return_frozenset():
     result = known_providers()
 
     assert isinstance(result, frozenset)
 
 
-def test_known_providers_contains_registered():
+def test_known_providers_should_contain_registered():
     result = known_providers()
 
     assert "openai" in result
     assert "anthropic" in result
 
 
-def test_known_providers_excludes_unknown():
+def test_known_providers_should_not_contain_unknown():
     result = known_providers()
 
     assert "unknown" not in result

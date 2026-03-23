@@ -6,7 +6,7 @@ from promptlab.domain.statistics import (
 )
 
 
-def test_calculate_stats_single_run():
+def test_calculate_stats_should_compute_when_single_run():
     results = [
         RunResult(
             input_id="test-1",
@@ -36,7 +36,7 @@ def test_calculate_stats_single_run():
     assert stats[0].ci_upper == 8.0
 
 
-def test_calculate_stats_multiple_runs():
+def test_calculate_stats_should_compute_when_multiple_runs():
     results = [
         RunResult(
             input_id="test-1",
@@ -88,7 +88,7 @@ def test_calculate_stats_multiple_runs():
     assert stats[0].ci_upper > stats[0].mean
 
 
-def test_calculate_stats_groups_by_input_and_model():
+def test_calculate_stats_should_group_by_input_and_model():
     results = [
         RunResult(
             input_id="test-1",
@@ -139,13 +139,13 @@ def test_calculate_stats_groups_by_input_and_model():
     assert stats_dict[("test-2", "openai:gpt-4o")].mean == 7.0
 
 
-def test_confidence_interval_single_sample():
+def test_confidence_interval_should_return_none_when_single_sample():
     ci_lower, ci_upper = calculate_confidence_interval(8.0, 0.0, 1)
     assert ci_lower == 8.0
     assert ci_upper == 8.0
 
 
-def test_confidence_interval_multiple_samples():
+def test_confidence_interval_should_compute_when_multiple_samples():
     # mean=9, stddev=1, n=3
     # t_crit for df=2 is 4.303
     # margin = 4.303 * (1 / sqrt(3)) = 4.303 * 0.577 = 2.48
@@ -156,7 +156,7 @@ def test_confidence_interval_multiple_samples():
     assert 11.0 < ci_upper < 12.0  # ~11.48
 
 
-def test_welch_t_test_same_distributions():
+def test_welch_t_test_should_not_be_significant_when_same_distributions():
     scores1 = [8, 9, 8, 9, 8]
     scores2 = [8, 9, 8, 9, 8]
     t_stat, p_value = welch_t_test(scores1, scores2)
@@ -164,7 +164,7 @@ def test_welch_t_test_same_distributions():
     assert p_value == 1.0
 
 
-def test_welch_t_test_different_distributions():
+def test_welch_t_test_should_be_significant_when_different_distributions():
     scores1 = [9, 10, 9, 10, 9]  # mean ~9.4
     scores2 = [5, 6, 5, 6, 5]  # mean ~5.4
     t_stat, p_value = welch_t_test(scores1, scores2)
@@ -172,7 +172,7 @@ def test_welch_t_test_different_distributions():
     assert p_value <= 0.05
 
 
-def test_welch_t_test_insufficient_samples():
+def test_welch_t_test_should_return_none_when_insufficient_samples():
     scores1 = [8]
     scores2 = [9]
     t_stat, p_value = welch_t_test(scores1, scores2)

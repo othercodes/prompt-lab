@@ -40,7 +40,7 @@ def _write_config(tmp_path: Path, config: dict) -> Path:
 # --- parse_config tests ---
 
 
-def test_parse_config_valid(tmp_path):
+def test_parse_config_should_parse_when_valid(tmp_path):
     config_file = _write_config(tmp_path, VALID_CONFIG)
     spec = parse_config(config_file)
 
@@ -52,7 +52,7 @@ def test_parse_config_valid(tmp_path):
     assert spec.judge.model == "openai:gpt-4o"
 
 
-def test_parse_config_minimal(tmp_path):
+def test_parse_config_should_parse_when_minimal(tmp_path):
     minimal = {
         "name": "minimal",
         "models": ["openai:gpt-4o-mini"],
@@ -70,21 +70,21 @@ def test_parse_config_minimal(tmp_path):
     assert spec.hypothesis == ""  # default
 
 
-def test_parse_config_missing_name(tmp_path):
+def test_parse_config_should_raise_when_name_missing(tmp_path):
     config = {k: v for k, v in VALID_CONFIG.items() if k != "name"}
     config_file = _write_config(tmp_path, config)
     with pytest.raises(CreateExperimentError, match="Missing required keys.*name"):
         parse_config(config_file)
 
 
-def test_parse_config_missing_models(tmp_path):
+def test_parse_config_should_raise_when_models_missing(tmp_path):
     config = {k: v for k, v in VALID_CONFIG.items() if k != "models"}
     config_file = _write_config(tmp_path, config)
     with pytest.raises(CreateExperimentError, match="Missing required keys.*models"):
         parse_config(config_file)
 
 
-def test_parse_config_no_inputs_defaults_to_default(tmp_path):
+def test_parse_config_should_default_inputs_when_none_provided(tmp_path):
     config = {k: v for k, v in VALID_CONFIG.items() if k != "inputs"}
     config_file = _write_config(tmp_path, config)
     spec = parse_config(config_file)
@@ -92,7 +92,7 @@ def test_parse_config_no_inputs_defaults_to_default(tmp_path):
     assert spec.inputs[0]["id"] == "default"
 
 
-def test_parse_config_missing_variants(tmp_path):
+def test_parse_config_should_raise_when_variants_missing(tmp_path):
     config = {k: v for k, v in VALID_CONFIG.items() if k != "variants"}
     config_file = _write_config(tmp_path, config)
     with pytest.raises(CreateExperimentError, match="Missing required keys.*variants"):
@@ -102,7 +102,7 @@ def test_parse_config_missing_variants(tmp_path):
 # --- validate_spec tests ---
 
 
-def test_validate_model_format_invalid():
+def test_validate_should_raise_when_model_format_invalid():
     spec = ExperimentSpec(
         name="test",
         models=["gpt-4o-mini"],  # missing provider prefix
@@ -113,7 +113,7 @@ def test_validate_model_format_invalid():
         validate_spec(spec)
 
 
-def test_validate_jinja2_vars_match():
+def test_validate_should_pass_when_jinja2_vars_match():
     spec = ExperimentSpec(
         name="test",
         models=["openai:gpt-4o-mini"],
@@ -123,7 +123,7 @@ def test_validate_jinja2_vars_match():
     validate_spec(spec)  # should not raise
 
 
-def test_validate_jinja2_vars_mismatch():
+def test_validate_should_raise_when_jinja2_vars_mismatch():
     spec = ExperimentSpec(
         name="test",
         models=["openai:gpt-4o-mini"],
@@ -136,7 +136,7 @@ def test_validate_jinja2_vars_mismatch():
         validate_spec(spec)
 
 
-def test_validate_judge_rubric_missing_vars():
+def test_validate_should_raise_when_judge_rubric_missing_vars():
     spec = ExperimentSpec(
         name="test",
         models=["openai:gpt-4o-mini"],
@@ -148,7 +148,7 @@ def test_validate_judge_rubric_missing_vars():
         validate_spec(spec)
 
 
-def test_validate_hardcoded_prompt_skips_jinja2_check():
+def test_validate_should_skip_jinja2_check_when_prompt_hardcoded():
     spec = ExperimentSpec(
         name="test",
         models=["openai:gpt-4o-mini"],
@@ -171,14 +171,14 @@ def test_validate_hardcoded_prompt_skips_jinja2_check():
         ("UPPERCASE", "uppercase"),
     ],
 )
-def test_parse_config_slugifies_name(tmp_path, input_name, expected):
+def test_parse_config_should_slugify_name(tmp_path, input_name, expected):
     config = {**VALID_CONFIG, "name": input_name}
     config_file = _write_config(tmp_path, config)
     spec = parse_config(config_file)
     assert spec.name == expected
 
 
-def test_validate_spec_slugifies_name():
+def test_validate_should_slugify_name():
     spec = ExperimentSpec(
         name="My Experiment",
         models=["openai:gpt-4o-mini"],
@@ -192,7 +192,7 @@ def test_validate_spec_slugifies_name():
 # --- scaffolder tests ---
 
 
-def test_scaffold_creates_directory_structure(tmp_path):
+def test_scaffold_should_create_directory_structure(tmp_path):
     spec = ExperimentSpec(
         name="test-exp",
         models=["openai:gpt-4o-mini"],
@@ -210,7 +210,7 @@ def test_scaffold_creates_directory_structure(tmp_path):
     assert (result_path / "v1" / "prompt.md").exists()
 
 
-def test_scaffold_skips_inputs_yaml_for_hardcoded_prompts(tmp_path):
+def test_scaffold_should_skip_inputs_yaml_when_prompt_hardcoded(tmp_path):
     spec = ExperimentSpec(
         name="test-exp",
         models=["openai:gpt-4o-mini"],
@@ -228,7 +228,7 @@ def test_scaffold_skips_inputs_yaml_for_hardcoded_prompts(tmp_path):
     assert (result_path / "v1" / "prompt.md").exists()
 
 
-def test_scaffold_experiment_md_content(tmp_path):
+def test_scaffold_should_write_experiment_md_content(tmp_path):
     spec = ExperimentSpec(
         name="test-exp",
         description="A test experiment",
@@ -252,7 +252,7 @@ def test_scaffold_experiment_md_content(tmp_path):
     assert post["runs"] == 3
 
 
-def test_scaffold_existing_dir_error(tmp_path):
+def test_scaffold_should_raise_when_directory_exists(tmp_path):
     spec = ExperimentSpec(
         name="existing-exp",
         models=["openai:gpt-4o-mini"],
@@ -271,7 +271,7 @@ def test_scaffold_existing_dir_error(tmp_path):
 # --- system.md tests ---
 
 
-def test_scaffold_creates_system_md_when_present(tmp_path):
+def test_scaffold_should_create_system_md_when_present(tmp_path):
     spec = ExperimentSpec(
         name="test-exp",
         models=["openai:gpt-4o-mini"],
@@ -288,7 +288,7 @@ def test_scaffold_creates_system_md_when_present(tmp_path):
     assert (result_path / "v1" / "system.md").read_text() == "You are a comedian"
 
 
-def test_scaffold_skips_system_md_when_absent(tmp_path):
+def test_scaffold_should_not_create_system_md_when_absent(tmp_path):
     spec = ExperimentSpec(
         name="test-exp",
         models=["openai:gpt-4o-mini"],
@@ -302,7 +302,7 @@ def test_scaffold_skips_system_md_when_absent(tmp_path):
     assert not (result_path / "v1" / "system.md").exists()
 
 
-def test_loader_reads_system_md(tmp_path):
+def test_loader_should_read_system_md(tmp_path):
     spec = ExperimentSpec(
         name="sys-test",
         models=["openai:gpt-4o-mini"],
@@ -326,7 +326,7 @@ def test_loader_reads_system_md(tmp_path):
     assert "{{ text }}" in variant.prompt.content
 
 
-def test_loader_returns_none_system_when_no_file(tmp_path):
+def test_loader_should_return_none_system_when_no_file(tmp_path):
     spec = ExperimentSpec(
         name="no-sys-test",
         models=["openai:gpt-4o-mini"],
@@ -344,7 +344,7 @@ def test_loader_returns_none_system_when_no_file(tmp_path):
     assert variant.prompt.system_content is None
 
 
-def test_validate_system_template_vars(tmp_path):
+def test_validate_should_check_system_template_vars(tmp_path):
     spec = ExperimentSpec(
         name="test",
         models=["openai:gpt-4o-mini"],
@@ -362,7 +362,7 @@ def test_validate_system_template_vars(tmp_path):
         validate_spec(spec)
 
 
-def test_parse_config_with_system(tmp_path):
+def test_parse_config_should_parse_system_when_provided(tmp_path):
     config = {
         **VALID_CONFIG,
         "variants": {
@@ -377,7 +377,7 @@ def test_parse_config_with_system(tmp_path):
 # --- Round-trip integration test (KEY) ---
 
 
-def test_roundtrip_scaffold_then_load(tmp_path):
+def test_scaffold_should_roundtrip_with_loader(tmp_path):
     spec = ExperimentSpec(
         name="roundtrip-test",
         description="Testing round-trip",

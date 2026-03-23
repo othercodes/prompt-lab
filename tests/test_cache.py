@@ -12,7 +12,7 @@ def cache(tmp_path: Path) -> Generator[FileCache, None, None]:
     yield FileCache(tmp_path / ".cache")
 
 
-def test_make_key_is_deterministic(cache: FileCache):
+def test_make_key_should_be_deterministic(cache: FileCache):
     key1 = cache.make_key(
         prompt="Hello {name}",
         input_data={"name": "World"},
@@ -27,7 +27,7 @@ def test_make_key_is_deterministic(cache: FileCache):
     assert key1 == key2
 
 
-def test_make_key_differs_for_different_inputs(cache: FileCache):
+def test_make_key_should_differ_when_different_inputs(cache: FileCache):
     key1 = cache.make_key(
         prompt="Hello {name}",
         input_data={"name": "World"},
@@ -42,7 +42,7 @@ def test_make_key_differs_for_different_inputs(cache: FileCache):
     assert key1 != key2
 
 
-def test_put_and_get(cache: FileCache):
+def test_cache_should_store_and_retrieve_response(cache: FileCache):
     key = cache.make_key(
         prompt="test",
         input_data={},
@@ -66,12 +66,12 @@ def test_put_and_get(cache: FileCache):
     assert retrieved.input_tokens == 10
 
 
-def test_get_returns_none_for_missing_key(cache: FileCache):
+def test_cache_should_return_none_when_key_missing(cache: FileCache):
     result = cache.get("nonexistent")
     assert result is None
 
 
-def test_clear_removes_all_entries(cache: FileCache):
+def test_cache_should_remove_all_entries_when_cleared(cache: FileCache):
     key = cache.make_key(prompt="test", input_data={}, model="test")
     response = ProviderResponse(content="test")
     cache.put(key, response)
