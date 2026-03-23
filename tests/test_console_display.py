@@ -13,31 +13,31 @@ from promptlab.infrastructure.console_display import (
 # --- _score_style ---
 
 
-def test_score_style_default_range_green():
+def test_score_style_should_be_green_when_default_range_high():
     # range_size=9; green >= 1+7.2=8.2, so 9 and 10 are green
     assert _score_style(9, (1, 10)) == "bold green"
     assert _score_style(10, (1, 10)) == "bold green"
 
 
-def test_score_style_default_range_yellow():
+def test_score_style_should_be_yellow_when_default_range_mid():
     # yellow >= 1+5.4=6.4, so 7 and 8 are yellow
     assert _score_style(7, (1, 10)) == "yellow"
     assert _score_style(8, (1, 10)) == "yellow"
 
 
-def test_score_style_default_range_orange():
+def test_score_style_should_be_orange_when_default_range_low():
     # orange >= 1+3.6=4.6, so 5 and 6 are orange
     assert _score_style(5, (1, 10)) == "orange3"
     assert _score_style(6, (1, 10)) == "orange3"
 
 
-def test_score_style_default_range_red():
+def test_score_style_should_be_red_when_default_range_lowest():
     # below 4.6, so 1-4 are red
     assert _score_style(1, (1, 10)) == "bold red"
     assert _score_style(4, (1, 10)) == "bold red"
 
 
-def test_score_style_range_1_5():
+def test_score_style_should_scale_when_range_1_5():
     # range_size = 4; thresholds: green >= 1+3.2=4.2, yellow >= 1+2.4=3.4, orange >= 1+1.6=2.6
     assert _score_style(5, (1, 5)) == "bold green"
     assert _score_style(4, (1, 5)) == "yellow"
@@ -45,7 +45,7 @@ def test_score_style_range_1_5():
     assert _score_style(1, (1, 5)) == "bold red"
 
 
-def test_score_style_range_1_20():
+def test_score_style_should_scale_when_range_1_20():
     # range_size = 19; thresholds: green >= 1+15.2=16.2, yellow >= 1+11.4=12.4, orange >= 1+7.6=8.6
     assert _score_style(17, (1, 20)) == "bold green"
     assert _score_style(13, (1, 20)) == "yellow"
@@ -85,7 +85,7 @@ def _make_summary(score_range: tuple[int, int], results: list[RunResult]) -> Run
     )
 
 
-def test_individual_results_table_shows_correct_score_max():
+def test_results_table_should_show_correct_score_max():
     buf = StringIO()
     test_console = Console(file=buf, highlight=False, markup=False)
 
@@ -99,7 +99,7 @@ def test_individual_results_table_shows_correct_score_max():
     assert "/10" not in output
 
 
-def test_individual_results_table_default_range_shows_10():
+def test_results_table_should_show_10_when_default_range():
     buf = StringIO()
     test_console = Console(file=buf, highlight=False, markup=False)
 

@@ -4,7 +4,7 @@ from promptlab.application.evaluate_response import (
 )
 
 
-def test_single_judge_is_not_multi():
+def test_judge_config_should_not_be_multi_when_single_model():
     result = JudgeResult(
         score=8,
         reasoning="Good response",
@@ -21,7 +21,7 @@ def test_single_judge_is_not_multi():
     assert result.is_multi_judge is False
 
 
-def test_multiple_judges_is_multi():
+def test_judge_config_should_be_multi_when_multiple_models():
     result = JudgeResult(
         score=8,
         reasoning="Combined reasoning",
